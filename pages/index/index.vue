@@ -12,7 +12,14 @@
         <view class="search-box">
           <u-icon name="scan" color="#4b8dff" size="22"></u-icon>
           <view class="search-divider"></view>
-          <text class="search-placeholder">输入要查询的单号或扫码单号</text>
+          <input
+            v-model="searchNo"
+            class="search-input"
+            type="text"
+            confirm-type="search"
+            placeholder="输入要查询的单号或扫码单号"
+            placeholder-class="search-placeholder"
+          />
           <u-icon name="search" color="#333333" size="22"></u-icon>
         </view>
       </view>
@@ -129,6 +136,10 @@
 </template>
 
 <script setup>
+import { ref } from 'vue'
+
+const searchNo = ref('')
+
 const followButtonStyle = {
   width: '96rpx',
   height: '40rpx',
@@ -255,8 +266,16 @@ page {
   background: #e7eaf0;
 }
 
-.search-placeholder {
+.search-input {
   flex: 1;
+  height: 88rpx;
+  min-width: 0;
+  color: #17233d;
+  font-size: 25rpx;
+  line-height: 88rpx;
+}
+
+.search-placeholder {
   color: #b8beca;
   font-size: 25rpx;
   line-height: 88rpx;
