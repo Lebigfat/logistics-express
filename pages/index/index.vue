@@ -2,17 +2,18 @@
   <view class="page">
     <view class="hero">
       <view class="status-space"></view>
-
       <view class="brand-row">
         <text class="brand">寄速递</text>
+      
       </view>
 
-      <view class="search-wrap">
+        <view class="search-wrap">
+        
         <view class="search-box">
-          <UvIcon name="scan" color="#4b8dff" size="22"></UvIcon>
+          <u-icon name="scan" color="#4b8dff" size="22"></u-icon>
           <view class="search-divider"></view>
           <text class="search-placeholder">输入要查询的单号或扫码单号</text>
-          <UvIcon name="search" color="#333333" size="22"></UvIcon>
+          <u-icon name="search" color="#333333" size="22"></u-icon>
         </view>
       </view>
 
@@ -20,7 +21,7 @@
         <view class="primary-card" @tap="goSend">
           <view class="quick-main">
             <view class="send-icon">
-              <UvIcon name="arrow-upward" color="#ffffff" size="25" bold></UvIcon>
+              <u-icon name="arrow-upward" color="#ffffff" size="25" bold></u-icon>
             </view>
             <view class="quick-text">
               <text class="quick-title">寄快递</text>
@@ -31,7 +32,7 @@
           <view class="ai-area">
             <view class="ai-chip">
               <text>AI自动全网比价</text>
-              <UvIcon name="arrow-right" color="#ffffff" size="14"></UvIcon>
+              <u-icon name="arrow-right" color="#ffffff" size="14"></u-icon>
             </view>
             <view class="brand-dots">
               <text
@@ -49,7 +50,7 @@
         <view class="side-actions">
           <view class="side-card" v-for="item in topActions" :key="item.title">
             <view class="side-icon" :class="item.iconClass">
-              <UvIcon :name="item.icon" color="#ffffff" size="25"></UvIcon>
+              <u-icon :name="item.icon" color="#ffffff" size="25"></u-icon>
             </view>
             <view class="side-copy">
               <text class="side-title">{{ item.title }}</text>
@@ -62,22 +63,22 @@
 
     <view class="main">
       <view class="tool-grid">
-        <UvGrid col="4" :border="false">
-          <UvGridItem v-for="item in tools" :key="item.title" :name="item.title">
+        <u-grid col="4" :border="false">
+          <u-grid-item v-for="item in tools" :key="item.title" :name="item.title">
             <view class="tool-item">
               <view class="tool-badge" v-if="item.badge">{{ item.badge }}</view>
               <view class="tool-icon" :class="item.iconClass">
-                <UvIcon :name="item.icon" color="#ffffff" size="18"></UvIcon>
+                <u-icon :name="item.icon" color="#ffffff" size="18"></u-icon>
               </view>
               <text>{{ item.title }}</text>
             </view>
-          </UvGridItem>
-        </UvGrid>
+          </u-grid-item>
+        </u-grid>
       </view>
 
       <view class="notice-card">
         <view class="notice-icon">
-          <UvIcon name="volume-fill" color="#ffffff" size="16"></UvIcon>
+          <u-icon name="volume-fill" color="#ffffff" size="16"></u-icon>
         </view>
         <text class="notice-text">恭喜李某某获得3.76元奖励，</text>
         <text class="notice-link">点击分享返佣</text>
@@ -93,7 +94,7 @@
           </view>
         </view>
         <view class="pin-wrap">
-          <UvIcon name="map-fill" color="#ff604b" size="28"></UvIcon>
+          <u-icon name="map-fill" color="#ff604b" size="28"></u-icon>
         </view>
         <view class="parcel-art">
           <view class="parcel parcel-a"></view>
@@ -110,10 +111,10 @@
 
       <view class="follow-bar">
         <view class="close">
-          <UvIcon name="close" color="#ffffff" size="13"></UvIcon>
+          <u-icon name="close" color="#ffffff" size="13"></u-icon>
         </view>
         <text class="follow-text">关注公众号，领优惠券再加平台返利</text>
-        <UvButton
+        <u-button
           text="去关注"
           type="primary"
           shape="circle"
@@ -121,18 +122,13 @@
           color="#438bff"
           :custom-style="followButtonStyle"
           :custom-text-style="followButtonTextStyle"
-        ></UvButton>
+        ></u-button>
       </view>
     </view>
   </view>
 </template>
 
 <script setup>
-import UvButton from '@/components/uv-button/uv-button.vue'
-import UvGrid from '@/components/uv-grid/uv-grid.vue'
-import UvGridItem from '@/components/uv-grid-item/uv-grid-item.vue'
-import UvIcon from '@/components/uv-icon/uv-icon.vue'
-
 const followButtonStyle = {
   width: '96rpx',
   height: '40rpx',

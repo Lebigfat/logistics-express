@@ -1,4 +1,10 @@
 {
+  "easycom": {
+    "autoscan": true,
+    "custom": {
+      "^u-(.*)": "uview-plus/components/u-$1/u-$1.vue"
+    }
+  },
   "pages": [
     {
       "path": "pages/index/index",
@@ -15,21 +21,38 @@
       }
     },
     {
+      "path": "pages/coupon/index",
+      "style": {
+        "navigationStyle": "custom",
+        "disableScroll": false
+      }
+    },
+    {
+      "path": "pages/address/index",
+      "style": {
+        "navigationStyle": "custom",
+        "disableScroll": false
+      }
+    },
+    {
       "path": "pages/express/index",
       "style": {
-        "navigationBarTitleText": "查快递"
+        "navigationStyle": "custom",
+        "disableScroll": false
       }
     },
     {
       "path": "pages/life/index",
       "style": {
-        "navigationBarTitleText": "生活服务"
+        "navigationStyle": "custom",
+        "disableScroll": false
       }
     },
     {
       "path": "pages/profile/index",
       "style": {
-        "navigationBarTitleText": "我的"
+        "navigationStyle": "custom",
+        "disableScroll": false
       }
     }
   ],

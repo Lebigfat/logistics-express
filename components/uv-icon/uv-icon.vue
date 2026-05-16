@@ -11,6 +11,8 @@ const icons = {
   scan: '□',
   search: '⌕',
   'arrow-upward': '↑',
+  'arrow-up': '⌃',
+  'arrow-down': '⌄',
   'arrow-right': '›',
   car: '▣',
   map: '◆',
