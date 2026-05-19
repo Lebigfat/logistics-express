@@ -1,38 +1,24 @@
-import { defineConfig } from 'vite'
-import uni from '@dcloudio/vite-plugin-uni'
-import path from 'path'
+const path = require('path')
+const uni = require('@dcloudio/vite-plugin-uni')
 
-export default defineConfig({
-  plugins: [uni()],
+module.exports = {
+  plugins: [uni.default ? uni.default() : uni()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, 'src')
-    }
+      '@': path.resolve(__dirname),
+    },
   },
-
-  css: {
-    preprocessorOptions: {
-      scss: {
-        additionalData: `@import "uview-plus/theme.scss";`
-      }
-    }
-  },
-
+  css: {},
   optimizeDeps: {
-    include: [
-      'uview-plus'
-    ]
+    include: ['uview-plus'],
   },
-
   build: {
-    // 避免 uv-ui 被 tree-shaking 掉样式
     commonjsOptions: {
-      transformMixedEsModules: true
-    }
+      transformMixedEsModules: true,
+    },
   },
-
   server: {
     port: 5173,
-    host: true
-  }
-})
+    host: true,
+  },
+}

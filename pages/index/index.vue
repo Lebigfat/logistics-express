@@ -2,66 +2,61 @@
   <view class="page">
     <view class="hero">
       <view class="status-space"></view>
-      <view class="brand-row">
-        <text class="brand">寄速递</text>
-      
-      </view>
-
-        <view class="search-wrap">
-        
-        <view class="search-box">
-          <u-icon name="scan" color="#4b8dff" size="22"></u-icon>
-          <view class="search-divider"></view>
-          <input
-            v-model="searchNo"
-            class="search-input"
-            type="text"
-            confirm-type="search"
-            placeholder="输入要查询的单号或扫码单号"
-            placeholder-class="search-placeholder"
-          />
-          <u-icon name="search" color="#333333" size="22"></u-icon>
+      <view class="top-row">
+        <text class="brand">寄速通</text>
+        <view class="capsule">
+          <UvIcon name="more-dot-fill" color="#000000" size="22"></UvIcon>
+          <view class="capsule-line"></view>
+          <view class="capsule-circle"></view>
         </view>
       </view>
 
+      <view class="search-box">
+        <UvIcon name="scan" color="#438bff" size="24"></UvIcon>
+        <view class="search-divider"></view>
+        <input
+          v-model="searchNo"
+          class="search-input"
+          placeholder="输入要查询的单号或扫码单号"
+          placeholder-class="search-placeholder"
+          confirm-type="search"
+        />
+        <UvIcon name="search" color="#666666" size="28"></UvIcon>
+      </view>
+
       <view class="quick-panel">
-        <view class="primary-card" @tap="goSend">
-          <view class="quick-main">
-            <view class="send-icon">
-              <u-icon name="arrow-upward" color="#ffffff" size="25" bold></u-icon>
+        <view class="primary-card" @tap="go('/pages/send/index')">
+          <view class="primary-top">
+            <view class="paper-icon">
+              <text>➤</text>
             </view>
-            <view class="quick-text">
+            <view>
               <text class="quick-title">寄快递</text>
-              <text class="quick-desc">寄全国 5元起</text>
+              <text class="quick-desc">寄全国5元起</text>
             </view>
           </view>
-
-          <view class="ai-area">
-            <view class="ai-chip">
-              <text>AI自动全网比价</text>
-              <u-icon name="arrow-right" color="#ffffff" size="14"></u-icon>
-            </view>
-            <view class="brand-dots">
-              <text
-                v-for="item in courierDots"
-                :key="item.name"
-                class="brand-dot"
-                :style="{ backgroundColor: item.color }"
-              >
-                {{ item.name }}
-              </text>
-            </view>
+          <view class="ai-row">
+            <text>AI自动全网比价</text>
+            <UvIcon name="arrow-right" color="#ffffff" size="16"></UvIcon>
+          </view>
+          <view class="brand-dots">
+            <text v-for="item in courierDots" :key="item.name" :style="{ backgroundColor: item.color }">{{ item.name }}</text>
           </view>
         </view>
 
         <view class="side-actions">
-          <view class="side-card" v-for="item in topActions" :key="item.title">
-            <view class="side-icon" :class="item.iconClass">
-              <u-icon :name="item.icon" color="#ffffff" size="25"></u-icon>
+          <view class="side-card" @tap="go('/pages/send/index?tab=large')">
+            <view class="side-icon blue">▣</view>
+            <view>
+              <text class="side-title">寄大件</text>
+              <text class="side-desc">30公斤起重货邮寄</text>
             </view>
-            <view class="side-copy">
-              <text class="side-title">{{ item.title }}</text>
-              <text class="side-desc">{{ item.desc }}</text>
+          </view>
+          <view class="side-card" @tap="go('/pages/moving/index')">
+            <view class="side-icon green">▰</view>
+            <view>
+              <text class="side-title">同城送货</text>
+              <text class="side-desc">同城跨城都便宜</text>
             </view>
           </view>
         </view>
@@ -70,44 +65,34 @@
 
     <view class="main">
       <view class="tool-grid">
-        <u-grid col="4" :border="false">
-          <u-grid-item v-for="item in tools" :key="item.title" :name="item.title">
-            <view class="tool-item">
-              <view class="tool-badge" v-if="item.badge">{{ item.badge }}</view>
-              <view class="tool-icon" :class="item.iconClass">
-                <u-icon :name="item.icon" color="#ffffff" size="18"></u-icon>
-              </view>
-              <text>{{ item.title }}</text>
-            </view>
-          </u-grid-item>
-        </u-grid>
+        <view v-for="item in tools" :key="item.title" class="tool-item" @tap="go(item.url)">
+          <view v-if="item.badge" class="tool-badge">{{ item.badge }}</view>
+          <view class="tool-icon" :class="item.tone">{{ item.icon }}</view>
+          <text>{{ item.title }}</text>
+        </view>
       </view>
 
       <view class="notice-card">
-        <view class="notice-icon">
-          <u-icon name="volume-fill" color="#ffffff" size="16"></u-icon>
-        </view>
-        <text class="notice-text">恭喜李某某获得3.76元奖励，</text>
-        <text class="notice-link">点击分享返佣</text>
+        <view class="notice-icon">▸</view>
+        <text class="notice-text">恭喜李某某获得0.76元奖励，</text>
+        <text class="notice-link" @tap="go('/pages/share/index')">点击分享返佣</text>
       </view>
 
       <view class="promo-banner">
         <view class="promo-copy">
           <text class="promo-tag">当天上门</text>
-          <text class="promo-title">寄件就用寄速递</text>
+          <text class="promo-title">寄件就用云优寄</text>
           <view class="promo-row">
             <text>全国低至</text>
-            <text class="promo-price">5元起!</text>
+            <text class="promo-price">5</text>
+            <text>元起!</text>
           </view>
         </view>
-        <view class="pin-wrap">
-          <u-icon name="map-fill" color="#ff604b" size="28"></u-icon>
-        </view>
-        <view class="parcel-art">
-          <view class="parcel parcel-a"></view>
-          <view class="parcel parcel-b"></view>
-          <view class="parcel parcel-c"></view>
-          <view class="parcel parcel-d"></view>
+        <view class="parcel-stack">
+          <view class="pin"></view>
+          <view class="parcel big"></view>
+          <view class="parcel mid"></view>
+          <view class="parcel small"></view>
           <view class="list-card">
             <view></view>
             <view></view>
@@ -116,20 +101,10 @@
         </view>
       </view>
 
-      <view class="follow-bar">
-        <view class="close">
-          <u-icon name="close" color="#ffffff" size="13"></u-icon>
-        </view>
-        <text class="follow-text">关注公众号，领优惠券再加平台返利</text>
-        <u-button
-          text="去关注"
-          type="primary"
-          shape="circle"
-          size="mini"
-          color="#438bff"
-          :custom-style="followButtonStyle"
-          :custom-text-style="followButtonTextStyle"
-        ></u-button>
+      <view class="follow-bar" v-if="showFollow">
+        <view class="close" @tap="showFollow = false">×</view>
+        <text>关注公众号，领优惠券再加平台返利</text>
+        <view class="follow-btn">去关注</view>
       </view>
     </view>
   </view>
@@ -137,51 +112,37 @@
 
 <script setup>
 import { ref } from 'vue'
+import UvIcon from '@/components/uv-icon/uv-icon.vue'
 
 const searchNo = ref('')
-
-const followButtonStyle = {
-  width: '96rpx',
-  height: '40rpx',
-  margin: 0,
-  padding: 0,
-}
-
-const followButtonTextStyle = {
-  fontSize: '20rpx',
-  lineHeight: '40rpx',
-}
+const showFollow = ref(true)
 
 const courierDots = [
-  { name: 'Y', color: '#5b2b74' },
-  { name: 'S', color: '#ffb100' },
-  { name: 'Z', color: '#1ea9ff' },
-  { name: 'T', color: '#7b7b7b' },
-  { name: 'C', color: '#0077ff' },
-  { name: 'J', color: '#f23b3b' },
-  { name: 'D', color: '#ff4d40' },
-]
-
-const topActions = [
-  { title: '寄大件', desc: '30公斤起重货邮寄', icon: 'car', iconClass: 'blue' },
-  { title: '同城送货', desc: '同城跨城都便宜', icon: 'map', iconClass: 'green' },
+  { name: 'YT', color: '#5b2b74' },
+  { name: 'ZTO', color: '#159ce8' },
+  { name: 'Y', color: '#ffb400' },
+  { name: 'STO', color: '#6d6d6d' },
+  { name: 'J&T', color: '#f01f2f' },
 ]
 
 const tools = [
-  { title: '查运费', icon: 'search', iconClass: 'cyan' },
-  { title: '同城闪送', icon: 'car', iconClass: 'blue' },
-  { title: '寄冷链', icon: 'gift', iconClass: 'green' },
-  { title: '商家寄件', icon: 'shopping-cart', iconClass: 'blue' },
-  { title: '分享返佣', icon: 'red-packet', iconClass: 'cyan', badge: '去赚钱' },
-  { title: '费用补贴', icon: 'coupon', iconClass: 'blue' },
-  { title: '批量寄件', icon: 'file-text', iconClass: 'green' },
-  { title: '意见反馈', icon: 'edit-pen', iconClass: 'blue' },
+  { title: '查运费', icon: '⌕', tone: 'cyan', url: '/pages/send/index' },
+  { title: '同城闪送', icon: '↗', tone: 'blue', url: '/pages/moving/index' },
+  { title: '寄冷链', icon: '❄', tone: 'green', url: '/pages/send/index' },
+  { title: '商家寄件', icon: '▰', tone: 'blue', url: '/pages/send/index?tab=business' },
+  { title: '分享返佣', icon: '¥', tone: 'cyan', badge: '去赚钱', url: '/pages/share/index' },
+  { title: '费用补缴', icon: '▱', tone: 'blue', url: '/pages/profile/index' },
+  { title: '批量寄件', icon: '▤', tone: 'green', url: '/pages/send/index?tab=batch' },
+  { title: '意见反馈', icon: '☰', tone: 'blue', url: '/pages/profile/index' },
 ]
 
-const goSend = () => {
-  uni.navigateTo({
-    url: '/pages/send/index',
-  })
+const go = (url) => {
+  if (!url) return
+  if (url.includes('/pages/profile') || url.includes('/pages/express') || url.includes('/pages/life')) {
+    uni.switchTab({ url })
+    return
+  }
+  uni.navigateTo({ url })
 }
 </script>
 
@@ -192,350 +153,316 @@ page {
 
 .page {
   min-height: 100vh;
-  padding-bottom: calc(30rpx + env(safe-area-inset-bottom));
-  background: #ffffff;
-  color: #17233d;
+  padding-bottom: calc(28rpx + env(safe-area-inset-bottom));
+  background: #f5f7fb;
+  color: #2c2d30;
   font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, sans-serif;
 }
 
 .hero {
-  padding: 0 36rpx 40rpx;
-  position: relative;
-  overflow: hidden;
+  padding: 0 30rpx 88rpx;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0) 68%, #ffffff 100%),
-    radial-gradient(circle at -20% 6%, rgba(70, 129, 255, 0.98) 0%, rgba(91, 161, 246, 0.78) 38%, rgba(91, 161, 246, 0) 68%),
-    radial-gradient(circle at 88% 6%, rgba(47, 220, 193, 0.98) 0%, rgba(87, 207, 218, 0.78) 38%, rgba(87, 207, 218, 0) 68%),
-    linear-gradient(90deg, #4f86ff 0%, #63b6ee 50%, #35dcc0 100%);
-}
-
-.hero::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 132rpx;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, #ffffff 86%);
-  pointer-events: none;
+    linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, #f5f7fb 100%),
+    linear-gradient(120deg, #4e86ff 0%, #77b9f0 50%, #2fd7b8 100%);
 }
 
 .status-space {
-  height: 86rpx;
+  height: calc(var(--status-bar-height) + 48rpx);
 }
 
-.brand-row {
-  height: 54rpx;
+.top-row {
   display: flex;
   align-items: center;
-  position: relative;
-  z-index: 1;
+  justify-content: space-between;
 }
 
 .brand {
   color: #ffffff;
-  font-size: 44rpx;
+  font-size: 46rpx;
   font-weight: 700;
-  line-height: 54rpx;
 }
 
-.search-wrap {
-  height: 88rpx;
-  margin-top: 22rpx;
-  position: relative;
-  z-index: 1;
-  border-radius: 14rpx;
-  overflow: hidden;
-  box-shadow: 0 8rpx 24rpx rgba(25, 74, 130, 0.08);
+.capsule {
+  width: 174rpx;
+  height: 64rpx;
+  padding: 0 26rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-radius: 34rpx;
+  background: rgba(255, 255, 255, 0.62);
+  box-sizing: border-box;
+}
+
+.capsule-line {
+  width: 1rpx;
+  height: 36rpx;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.capsule-circle {
+  width: 42rpx;
+  height: 42rpx;
+  border: 8rpx solid #000000;
+  border-radius: 50%;
+  box-sizing: border-box;
 }
 
 .search-box {
   height: 88rpx;
+  margin-top: 42rpx;
   padding: 0 24rpx;
   display: flex;
   align-items: center;
   border-radius: 14rpx;
   background: #ffffff;
+  box-shadow: 0 12rpx 30rpx rgba(34, 80, 140, 0.08);
   box-sizing: border-box;
 }
 
 .search-divider {
   width: 1rpx;
   height: 32rpx;
-  margin: 0 18rpx;
-  background: #e7eaf0;
+  margin: 0 22rpx;
+  background: #d4d7df;
 }
 
 .search-input {
   flex: 1;
   height: 88rpx;
-  min-width: 0;
-  color: #17233d;
-  font-size: 25rpx;
-  line-height: 88rpx;
+  color: #333333;
+  font-size: 27rpx;
 }
 
 .search-placeholder {
-  color: #b8beca;
-  font-size: 25rpx;
-  line-height: 88rpx;
+  color: #b7beca;
 }
 
 .quick-panel {
-  margin-top: 30rpx;
+  margin-top: 32rpx;
   display: flex;
-  position: relative;
-  z-index: 1;
-}
-
-.primary-card,
-.side-card,
-.tool-grid,
-.notice-card,
-.promo-banner,
-.follow-bar {
-  box-sizing: border-box;
+  gap: 18rpx;
 }
 
 .primary-card {
   flex: 1;
-  height: 308rpx;
-  margin-right: 18rpx;
+  height: 310rpx;
   overflow: hidden;
-  border-radius: 16rpx;
-  background: linear-gradient(135deg, #5d99ff 0%, #4a73f5 100%);
+  border-radius: 20rpx;
+  background: #4688f8;
   color: #ffffff;
-  box-shadow: 0 12rpx 30rpx rgba(43, 104, 213, 0.12);
 }
 
-.quick-main {
-  height: 140rpx;
-  padding: 30rpx 24rpx 0;
+.primary-top {
+  height: 142rpx;
+  padding: 32rpx 24rpx 0;
   display: flex;
   box-sizing: border-box;
 }
 
-.send-icon {
+.paper-icon {
   width: 78rpx;
   height: 78rpx;
   margin-right: 16rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 20rpx;
-  background: rgba(255, 255, 255, 0.25);
-}
-
-.quick-text {
-  padding-top: 4rpx;
+  border-radius: 22rpx;
+  background: rgba(255, 255, 255, 0.26);
+  font-size: 42rpx;
 }
 
 .quick-title,
 .quick-desc,
 .side-title,
-.side-desc,
-.tool-item text,
-.promo-tag,
-.promo-title {
+.side-desc {
   display: block;
 }
 
 .quick-title {
-  font-size: 31rpx;
+  font-size: 32rpx;
   font-weight: 700;
 }
 
 .quick-desc {
-  margin-top: 4rpx;
-  color: rgba(255, 255, 255, 0.86);
-  font-size: 22rpx;
+  margin-top: 8rpx;
+  font-size: 23rpx;
 }
 
-.ai-area {
-  height: 168rpx;
-  padding: 22rpx 24rpx 20rpx;
-  background: rgba(255, 255, 255, 0.15);
+.ai-row {
+  padding: 30rpx 24rpx 0;
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  background: rgba(255, 255, 255, 0.18);
+  font-size: 30rpx;
   box-sizing: border-box;
 }
 
-.ai-chip {
+.brand-dots {
+  height: 78rpx;
+  padding-left: 24rpx;
   display: flex;
   align-items: center;
-  color: #ffffff;
-  font-size: 27rpx;
-  font-weight: 500;
+  gap: 7rpx;
+  background: rgba(255, 255, 255, 0.18);
 }
 
-.brand-dots {
-  margin-top: 24rpx;
-  display: flex;
-}
-
-.brand-dot {
-  width: 28rpx;
-  height: 28rpx;
-  margin-right: 6rpx;
+.brand-dots text {
+  width: 32rpx;
+  height: 32rpx;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
   color: #ffffff;
-  font-size: 14rpx;
-  font-weight: 700;
+  font-size: 13rpx;
+  font-weight: 800;
 }
 
 .side-actions {
   flex: 1;
   display: flex;
   flex-direction: column;
+  gap: 16rpx;
 }
 
 .side-card {
-  height: 146rpx;
-  padding: 32rpx 26rpx;
+  height: 147rpx;
+  padding: 32rpx 24rpx;
   display: flex;
   align-items: center;
-  border-radius: 14rpx;
+  border-radius: 16rpx;
   background: #ffffff;
-  box-shadow: 0 12rpx 30rpx rgba(25, 74, 130, 0.08);
-}
-
-.side-card + .side-card {
-  margin-top: 16rpx;
+  box-sizing: border-box;
 }
 
 .side-icon {
-  width: 78rpx;
-  height: 78rpx;
+  width: 80rpx;
+  height: 80rpx;
   margin-right: 18rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 20rpx;
-}
-
-.side-copy {
-  flex: 1;
+  border-radius: 22rpx;
+  color: #ffffff;
+  font-size: 34rpx;
 }
 
 .side-title {
-  color: #222b3d;
   font-size: 31rpx;
   font-weight: 700;
 }
 
 .side-desc {
-  margin-top: 6rpx;
-  color: #9aa4b5;
-  font-size: 21rpx;
+  margin-top: 8rpx;
+  color: #8e99aa;
+  font-size: 22rpx;
 }
 
 .main {
-  margin-top: 0;
-  padding: 0 36rpx;
-  background: #ffffff;
+  margin-top: -46rpx;
+  padding: 0 30rpx 120rpx;
 }
 
 .tool-grid {
-  padding: 34rpx 4rpx 16rpx;
-  border-radius: 14rpx;
+  padding: 36rpx 20rpx 26rpx;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  row-gap: 28rpx;
+  border-radius: 16rpx;
   background: #ffffff;
-  box-shadow: 0 8rpx 28rpx rgba(25, 74, 130, 0.08);
+  box-shadow: 0 10rpx 30rpx rgba(26, 72, 130, 0.06);
 }
 
 .tool-item {
-  min-height: 106rpx;
-  margin-bottom: 24rpx;
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-start;
-  color: #3d4658;
-  font-size: 21rpx;
+  color: #333333;
+  font-size: 22rpx;
 }
 
 .tool-icon {
-  width: 42rpx;
-  height: 42rpx;
-  margin-bottom: 14rpx;
+  width: 52rpx;
+  height: 52rpx;
+  margin-bottom: 16rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 14rpx;
+  border-radius: 15rpx;
+  color: #ffffff;
+  font-size: 30rpx;
+  font-weight: 700;
 }
 
 .tool-badge {
   position: absolute;
-  top: -32rpx;
-  right: -48rpx;
-  height: 30rpx;
-  padding: 0rpx 10rpx;
+  top: -18rpx;
+  right: 4rpx;
+  height: 34rpx;
+  padding: 0 12rpx;
   border-radius: 18rpx 18rpx 18rpx 0;
-  background: #ff6b35;
+  background: #ff5b24;
   color: #ffffff;
-  font-size: 18rpx;
-  line-height: 30rpx;
-  font-weight: 700;
+  font-size: 20rpx;
+  line-height: 34rpx;
 }
 
 .blue {
-  background: linear-gradient(135deg, #6fa4ff, #4e83ff);
+  background: linear-gradient(135deg, #6fa4ff, #438bff);
 }
 
 .green {
-  background: linear-gradient(135deg, #7cebc8, #46d7ae);
+  background: linear-gradient(135deg, #79e8c6, #12caa2);
 }
 
 .cyan {
-  background: linear-gradient(135deg, #5ec9ff, #49b7ee);
+  background: linear-gradient(135deg, #62d7ff, #4a8cff);
 }
 
 .notice-card {
   height: 80rpx;
   margin-top: 28rpx;
-  padding: 0 18rpx;
+  padding: 0 26rpx;
   display: flex;
   align-items: center;
-  border-radius: 14rpx;
+  border-radius: 12rpx;
   background: #ffffff;
-  box-shadow: 0 8rpx 24rpx rgba(25, 74, 130, 0.07);
-  overflow: hidden;
+  box-shadow: 0 8rpx 26rpx rgba(26, 72, 130, 0.06);
 }
 
 .notice-icon {
   width: 38rpx;
   height: 38rpx;
-  margin-right: 14rpx;
+  margin-right: 18rpx;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: #5b8fff;
+  background: #6e9dff;
+  color: #ffffff;
 }
 
 .notice-text,
 .notice-link {
-  font-size: 25rpx;
-  line-height: 80rpx;
-}
-
-.notice-text {
-  color: #4d5f76;
+  font-size: 27rpx;
 }
 
 .notice-link {
-  color: #2f80ff;
+  color: #438bff;
 }
 
 .promo-banner {
   height: 292rpx;
   margin-top: 28rpx;
-  padding: 62rpx 54rpx;
+  padding: 64rpx 52rpx;
   position: relative;
   overflow: hidden;
-  border-radius: 8rpx;
-  background: linear-gradient(135deg, #d8ffe7 0%, #9ddfff 52%, #b9cfff 100%);
+  border-radius: 12rpx;
+  background: linear-gradient(135deg, #d8ffe6 0%, #9cddff 52%, #c3d3ff 100%);
+  box-sizing: border-box;
 }
 
 .promo-copy {
@@ -544,136 +471,150 @@ page {
 }
 
 .promo-tag {
-  width: 98rpx;
-  height: 30rpx;
+  width: 126rpx;
+  height: 34rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 18rpx;
   background: linear-gradient(90deg, #2e78ff, #42c5ff);
   color: #ffffff;
-  font-size: 18rpx;
-  line-height: 30rpx;
-  text-align: center;
+  font-size: 22rpx;
   font-weight: 700;
 }
 
 .promo-title {
-  margin-top: 20rpx;
-  color: #101820;
-  font-size: 40rpx;
-  font-weight: 800;
+  display: block;
+  margin-top: 28rpx;
+  color: #071018;
+  font-size: 42rpx;
+  font-weight: 900;
 }
 
 .promo-row {
   margin-top: 12rpx;
   display: flex;
   align-items: baseline;
-  color: #101820;
-  font-size: 20rpx;
+  color: #071018;
+  font-size: 24rpx;
   font-weight: 800;
 }
 
 .promo-price {
-  margin-left: 4rpx;
-  color: #ff4700;
-  font-size: 26rpx;
+  margin: 0 4rpx;
+  color: #ff4b00;
+  font-size: 40rpx;
 }
 
-.pin-wrap {
+.parcel-stack {
   position: absolute;
-  right: 118rpx;
-  top: 42rpx;
-  z-index: 3;
-}
-
-.parcel-art {
-  position: absolute;
-  right: 24rpx;
-  bottom: 28rpx;
+  right: 32rpx;
+  bottom: 30rpx;
   width: 260rpx;
-  height: 180rpx;
+  height: 190rpx;
+}
+
+.pin {
+  position: absolute;
+  right: 80rpx;
+  top: 0;
+  width: 48rpx;
+  height: 66rpx;
+  border-radius: 50% 50% 50% 0;
+  background: #ff4f61;
+  transform: rotate(-45deg);
 }
 
 .parcel {
   position: absolute;
   border-radius: 8rpx;
-  background: #ffbd4a;
-  box-shadow: inset 0 -8rpx 0 rgba(202, 111, 0, 0.18);
+  background: #ffd066;
+  box-shadow: inset 0 -10rpx 0 rgba(195, 110, 0, 0.18);
 }
 
-.parcel-a {
-  right: 40rpx;
+.parcel.big {
+  right: 48rpx;
   bottom: 0;
-  width: 92rpx;
-  height: 98rpx;
+  width: 96rpx;
+  height: 106rpx;
 }
 
-.parcel-b {
-  right: 118rpx;
+.parcel.mid {
+  right: 128rpx;
   bottom: 0;
-  width: 70rpx;
-  height: 74rpx;
-  background: #ffd26d;
+  width: 76rpx;
+  height: 76rpx;
+  background: #ffc455;
 }
 
-.parcel-c {
-  right: 8rpx;
-  bottom: 8rpx;
-  width: 60rpx;
-  height: 58rpx;
-  background: #ffc152;
-}
-
-.parcel-d {
-  right: 70rpx;
-  bottom: 92rpx;
-  width: 58rpx;
-  height: 56rpx;
-  background: #f7a83a;
+.parcel.small {
+  right: 6rpx;
+  bottom: 12rpx;
+  width: 64rpx;
+  height: 64rpx;
+  background: #ffb948;
 }
 
 .list-card {
   position: absolute;
-  left: 4rpx;
-  bottom: 10rpx;
-  width: 66rpx;
-  height: 74rpx;
-  padding: 12rpx 10rpx;
+  left: 8rpx;
+  bottom: 12rpx;
+  width: 70rpx;
+  height: 78rpx;
+  padding: 14rpx 10rpx;
   border-radius: 10rpx;
   background: #ffffff;
   box-sizing: border-box;
-  box-shadow: 0 8rpx 18rpx rgba(49, 104, 178, 0.15);
 }
 
 .list-card view {
   height: 8rpx;
   margin-bottom: 10rpx;
   border-radius: 8rpx;
-  background: #4b8dff;
+  background: #438bff;
 }
 
 .follow-bar {
-  height: 68rpx;
+  height: 72rpx;
   margin-top: 28rpx;
-  padding: 0 10rpx 0 18rpx;
+  padding: 0 18rpx;
   display: flex;
   align-items: center;
-  border-radius: 34rpx;
-  background: #666a6d;
+  border-radius: 38rpx;
+  background: rgba(68, 68, 68, 0.78);
   color: #ffffff;
+  box-sizing: border-box;
 }
 
 .close {
-  width: 34rpx;
-  height: 34rpx;
-  margin-right: 10rpx;
+  width: 40rpx;
+  height: 40rpx;
+  margin-right: 12rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.12);
+  font-size: 42rpx;
+  line-height: 40rpx;
 }
 
-.follow-text {
+.follow-bar text {
   flex: 1;
-  font-size: 23rpx;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 28rpx;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.follow-btn {
+  width: 126rpx;
+  height: 48rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 26rpx;
+  background: #438bff;
+  font-size: 25rpx;
+  font-weight: 700;
 }
 </style>

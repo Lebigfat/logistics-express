@@ -1,9 +1,6 @@
 {
   "easycom": {
-    "autoscan": true,
-    "custom": {
-      "^u-(.*)": "uview-plus/components/u-$1/u-$1.vue"
-    }
+    "autoscan": true
   },
   "pages": [
     {
@@ -54,18 +51,39 @@
         "navigationStyle": "custom",
         "disableScroll": false
       }
+    },
+    {
+      "path": "pages/recycle/index",
+      "style": {
+        "navigationStyle": "custom",
+        "disableScroll": false
+      }
+    },
+    {
+      "path": "pages/moving/index",
+      "style": {
+        "navigationStyle": "custom",
+        "disableScroll": false
+      }
+    },
+    {
+      "path": "pages/share/index",
+      "style": {
+        "navigationStyle": "custom",
+        "disableScroll": false
+      }
     }
   ],
   "globalStyle": {
     "navigationBarTextStyle": "black",
-    "navigationBarTitleText": "寄速递",
+    "navigationBarTitleText": "寄速通",
     "navigationBarBackgroundColor": "#ffffff",
     "backgroundColor": "#f5f7fb",
     "backgroundTextStyle": "light"
   },
   "tabBar": {
     "color": "#b7beca",
-    "selectedColor": "#3d8bff",
+    "selectedColor": "#438bff",
     "backgroundColor": "#ffffff",
     "borderStyle": "white",
     "height": "58px",

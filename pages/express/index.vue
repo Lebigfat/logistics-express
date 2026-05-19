@@ -4,13 +4,7 @@
       <view class="search-row">
         <view class="search-box">
           <UvIcon name="search" color="#6f7378" size="25"></UvIcon>
-          <input
-            class="search-input"
-            v-model="keyword"
-            placeholder="请输入运单号查询/手机号"
-            placeholder-class="search-placeholder"
-            confirm-type="search"
-          />
+          <input v-model="keyword" class="search-input" placeholder="请输入运单号查询/手机号" placeholder-class="search-placeholder" confirm-type="search" />
         </view>
 
         <view class="capsule">
@@ -21,13 +15,7 @@
       </view>
 
       <scroll-view scroll-x class="status-tabs" show-scrollbar="false">
-        <view
-          v-for="item in tabs"
-          :key="item"
-          class="status-tab"
-          :class="{ active: activeTab === item }"
-          @tap="activeTab = item"
-        >
+        <view v-for="item in tabs" :key="item" class="status-tab" :class="{ active: activeTab === item }" @tap="activeTab = item">
           <text>{{ item }}</text>
         </view>
       </scroll-view>
@@ -36,13 +24,13 @@
     <view class="content">
       <view class="empty-state">
         <text class="empty-title">您还没有进行寄件下单</text>
-        <text class="empty-desc">可以去先寄件哦</text>
+        <text class="empty-desc">可以先去寄件哦</text>
         <view class="send-btn" @tap="goSend">去寄件</view>
       </view>
     </view>
 
-    <view class="follow-bar">
-      <view class="follow-close">
+    <view class="follow-bar" v-if="showFollow">
+      <view class="follow-close" @tap="showFollow = false">
         <UvIcon name="close" color="#ffffff" size="21"></UvIcon>
       </view>
       <text class="follow-text">关注公众号，领优惠券再加平台返利</text>
@@ -58,11 +46,10 @@ import UvIcon from '@/components/uv-icon/uv-icon.vue'
 const tabs = ['全部快递', '待揽件', '运输中', '已签收', '已取消']
 const activeTab = ref('全部快递')
 const keyword = ref('')
+const showFollow = ref(true)
 
 const goSend = () => {
-  uni.navigateTo({
-    url: '/pages/send/index',
-  })
+  uni.navigateTo({ url: '/pages/send/index' })
 }
 </script>
 
@@ -77,7 +64,6 @@ page {
   padding-bottom: calc(190rpx + env(safe-area-inset-bottom));
   background: #f4f5f8;
   color: #222222;
-  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, sans-serif;
   box-sizing: border-box;
 }
 
@@ -111,7 +97,6 @@ page {
   margin-left: 18rpx;
   color: #333333;
   font-size: 26rpx;
-  line-height: 64rpx;
 }
 
 .search-placeholder {
@@ -194,10 +179,8 @@ page {
 }
 
 .empty-title {
-  color: #333333;
   font-size: 31rpx;
   font-weight: 700;
-  line-height: 44rpx;
 }
 
 .empty-desc {
@@ -205,7 +188,6 @@ page {
   color: #a3a5a8;
   font-size: 28rpx;
   font-weight: 700;
-  line-height: 38rpx;
 }
 
 .send-btn {
@@ -233,8 +215,8 @@ page {
   align-items: center;
   border-radius: 38rpx;
   background: rgba(55, 55, 55, 0.76);
-  box-sizing: border-box;
   z-index: 8;
+  box-sizing: border-box;
 }
 
 .follow-close {

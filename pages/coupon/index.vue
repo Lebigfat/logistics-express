@@ -3,44 +3,33 @@
     <AppHead title="优惠券" show-back></AppHead>
 
     <view class="coupon-tabs">
-      <view
-        v-for="tab in couponTabs"
-        :key="tab"
-        class="coupon-tab"
-        :class="{ active: couponTab === tab }"
-        @tap="switchCouponTab(tab)"
-      >
-        <text>{{ tab }}</text>
+      <view v-for="tab in couponTabs" :key="tab.key" class="coupon-tab" :class="{ active: couponTab === tab.key }" @tap="couponTab = tab.key">
+        <text>{{ tab.label }}</text>
       </view>
     </view>
 
     <scroll-view scroll-y class="coupon-scroll">
-      <view class="coupon-card" :class="{ disabled: currentCoupon.disabled }">
+      <view v-for="coupon in currentCoupons" :key="coupon.id" class="coupon-card" :class="{ disabled: coupon.disabled }">
         <view class="coupon-main">
           <view class="coupon-amount">
-            <text class="coupon-currency">￥</text>
-            <text class="coupon-number">{{ currentCoupon.amount }}</text>
+            <text class="coupon-currency">¥</text>
+            <text class="coupon-number">{{ coupon.amount }}</text>
           </view>
           <view class="coupon-info">
-            <text class="coupon-name">{{ currentCoupon.title }}</text>
-            <text class="coupon-condition">{{ currentCoupon.condition }}</text>
-            <text class="coupon-expire">有效期至: {{ currentCoupon.expire }}</text>
-            <view class="coupon-detail-toggle" @tap="toggleCouponDetail">
+            <text class="coupon-name">{{ coupon.title }}</text>
+            <text class="coupon-condition">{{ coupon.condition }}</text>
+            <text class="coupon-expire">有效期至: {{ coupon.expire }}</text>
+            <view class="coupon-detail-toggle" @tap="toggleDetail(coupon.id)">
               <text>详细说明</text>
-              <UvIcon :name="couponDetailOpen ? 'arrow-up' : 'arrow-down'" color="#9ca3af" size="13"></UvIcon>
+              <UvIcon :name="openDetailId === coupon.id ? 'arrow-up' : 'arrow-down'" color="#9ca3af" size="13"></UvIcon>
             </view>
           </view>
-          <view
-            class="coupon-use-btn"
-            :class="{ disabled: currentCoupon.disabled, selected: selectedCoupon && selectedCoupon.id === currentCoupon.id }"
-            @tap.stop="useCoupon(currentCoupon)"
-          >
-            <text>{{ currentCoupon.disabled ? '失效' : (selectedCoupon && selectedCoupon.id === currentCoupon.id ? '已选择' : '立即使用') }}</text>
+          <view class="coupon-use-btn" :class="{ disabled: coupon.disabled, selected: selectedCoupon?.id === coupon.id }" @tap.stop="useCoupon(coupon)">
+            <text>{{ coupon.disabled ? '失效' : selectedCoupon?.id === coupon.id ? '已选择' : '立即使用' }}</text>
           </view>
         </view>
-
-        <view v-if="couponDetailOpen" class="coupon-detail">
-          <text v-for="line in currentCoupon.details" :key="line">·{{ line }}</text>
+        <view v-if="openDetailId === coupon.id" class="coupon-detail">
+          <text v-for="line in coupon.details" :key="line">·{{ line }}</text>
         </view>
       </view>
     </scroll-view>
@@ -53,73 +42,67 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import AppHead from '../../components/app-head/app-head.vue'
+import AppHead from '@/components/app-head/app-head.vue'
 import UvIcon from '@/components/uv-icon/uv-icon.vue'
 
-const couponTabs = ['可使用', '已失效']
-const couponTab = ref('可使用')
-const couponDetailOpen = ref(true)
+const couponTabs = [
+  { key: 'available', label: '可使用' },
+  { key: 'expired', label: '已失效' },
+]
+const couponTab = ref('available')
+const openDetailId = ref(1)
 const selectedCoupon = ref(null)
 let eventChannel = null
 
-const coupons = {
-  available: {
+const coupons = [
+  {
     id: 1,
     amount: '0.2',
     title: '福利券',
     condition: '满0.2使用',
-    expire: '2022.10.31 23:59',
+    expire: '2026.10.31 23:59',
     disabled: false,
-    details: [
-      '该券券可在【马雪王装旗舰店】使用',
-      '特定商品（限时购、闪购、新人价、会员福利购）不可用',
-    ],
+    details: ['该券可在平台寄件下单时抵扣运费', '特定活动商品、超重补缴订单不可用'],
   },
-  expired: {
+  {
     id: 2,
+    amount: '1',
+    title: '新客寄件券',
+    condition: '满5使用',
+    expire: '2026.12.31 23:59',
+    disabled: false,
+    details: ['仅限首单使用', '不可与其他优惠叠加'],
+  },
+  {
+    id: 3,
     amount: '0.2',
     title: '福利券',
     condition: '满0.2使用',
     expire: '2022.10.31 23:59',
     disabled: true,
-    details: [
-      '该券券可在【马雪王装旗舰店】使用',
-      '特定商品（限时购、闪购、新人价、会员福利购）不可用',
-    ],
+    details: ['该券已超过有效期', '失效券不可恢复使用'],
   },
-}
+]
 
-const currentCoupon = computed(() => (couponTab.value === '可使用' ? coupons.available : coupons.expired))
+const currentCoupons = computed(() => coupons.filter((item) => (couponTab.value === 'available' ? !item.disabled : item.disabled)))
 
-const switchCouponTab = (tab) => {
-  couponTab.value = tab
-  couponDetailOpen.value = tab === '可使用'
-}
-
-const toggleCouponDetail = () => {
-  couponDetailOpen.value = !couponDetailOpen.value
+const toggleDetail = (id) => {
+  openDetailId.value = openDetailId.value === id ? null : id
 }
 
 const useCoupon = (coupon) => {
-  if (coupon.disabled) {
-    return
-  }
-
+  if (coupon.disabled) return
   selectedCoupon.value = coupon
 }
 
 const confirmCoupon = () => {
-  if (eventChannel && selectedCoupon.value) {
-    eventChannel.emit('selectCoupon', selectedCoupon.value)
-  }
-
+  if (eventChannel && selectedCoupon.value) eventChannel.emit('selectCoupon', selectedCoupon.value)
   uni.navigateBack()
 }
 
 onMounted(() => {
   const pages = getCurrentPages()
-  const currentPage = pages[pages.length - 1]
-  eventChannel = currentPage?.getOpenerEventChannel?.()
+  eventChannel = pages[pages.length - 1]?.getOpenerEventChannel?.()
 })
 </script>
 
@@ -136,7 +119,6 @@ page {
 .coupon-tabs {
   height: 88rpx;
   display: flex;
-  align-items: center;
   background: #ffffff;
 }
 
@@ -175,6 +157,7 @@ page {
 }
 
 .coupon-card {
+  margin-bottom: 18rpx;
   overflow: hidden;
   border-radius: 8rpx;
   background: #ffffff;
@@ -202,7 +185,6 @@ page {
 
 .coupon-number {
   font-size: 58rpx;
-  line-height: 64rpx;
 }
 
 .coupon-info {
@@ -218,24 +200,20 @@ page {
 }
 
 .coupon-name {
-  color: #111827;
   font-size: 30rpx;
   font-weight: 700;
-  line-height: 38rpx;
 }
 
 .coupon-condition {
   margin-top: 8rpx;
   color: #6b7280;
   font-size: 24rpx;
-  line-height: 32rpx;
 }
 
 .coupon-expire {
   margin-top: 12rpx;
   color: #9ca3af;
   font-size: 22rpx;
-  line-height: 30rpx;
 }
 
 .coupon-detail-toggle {
@@ -299,8 +277,8 @@ page {
   bottom: 0;
   padding: 18rpx 28rpx calc(28rpx + env(safe-area-inset-bottom));
   background: #ffffff;
-  box-sizing: border-box;
   z-index: 9;
+  box-sizing: border-box;
 }
 
 .coupon-confirm-btn {

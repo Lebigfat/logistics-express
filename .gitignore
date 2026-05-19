@@ -1,5 +1,8 @@
 node_modules/
 unpackage/
+dist/
+_tmp_*
+pnpm-lock.yaml
 .hbuilderx/
 .DS_Store
 # npm cache
