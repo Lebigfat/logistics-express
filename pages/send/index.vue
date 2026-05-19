@@ -61,7 +61,7 @@
             </view>
           </view>
 
-          <CourierList :items="couriers" v-model:selected="selectedCourier" />
+          <CourierList :items="courierRows" v-model:selected="selectedCourier" />
         </template>
 
         <template v-else-if="activeTab === 'batch'">
@@ -109,7 +109,7 @@
         <view class="bottom-space"></view>
       </scroll-view>
 
-      <SubmitBar :price="activeTab === 'batch' ? 0 : 3980" />
+      <SubmitBar :price="displayPrice" />
     </template>
 
     <template v-else>
@@ -181,7 +181,7 @@
             <UvIcon name="close" color="#9ca3af" size="20"></UvIcon>
           </view>
         </view>
-        <CourierList :items="couriers" v-model:selected="pendingBatchCourier" compact />
+        <CourierList :items="courierRows" v-model:selected="pendingBatchCourier" compact />
         <view class="popup-confirm" @tap="confirmBatchCourier">确定</view>
       </view>
     </view>
@@ -219,6 +219,7 @@
 import { computed, defineComponent, h, onMounted, ref, watch } from 'vue'
 import AppHead from '@/components/app-head/app-head.vue'
 import UvIcon from '@/components/uv-icon/uv-icon.vue'
+import { orderApi, userApi } from '@/services/api'
 
 const tabs = [
   { key: 'normal', label: '寄快递' },
@@ -238,6 +239,10 @@ const selectedCoupon = ref(null)
 const selectedCourier = ref('圆通')
 const selectedBatchCourier = ref(null)
 const pendingBatchCourier = ref('圆通')
+const freightInfo = ref(null)
+const estimating = ref(false)
+const deliveryOptions = ref([])
+const goodsOptions = ref([])
 const showCourierPopup = ref(false)
 const showExcelPopup = ref(false)
 const showRecognizePopup = ref(false)
@@ -248,7 +253,8 @@ const remark = ref('')
 const remarkDraft = ref('')
 let eventChannel = null
 
-const goodsTypes = ['食品饮品', '潮玩', '美妆', '数码电器', '家具', '零食', '酒水', '文件', '日用品', '图书', '箱包', '其他']
+const fallbackGoodsTypes = ['食品饮品', '潮玩', '美妆', '数码电器', '家具', '零食', '酒水', '文件', '日用品', '图书', '箱包', '其他']
+const goodsTypes = computed(() => (goodsOptions.value.length ? goodsOptions.value.map((item) => item.value) : fallbackGoodsTypes))
 const goodsForm = ref({
   type: '食品饮品',
   insuredAmount: '',
@@ -269,9 +275,32 @@ const couriers = [
   { name: '京东快递', logo: 'JD', color: '#eb3b32', price: 7, tag: '京东直营，当天揽收' },
 ]
 
+const courierRows = computed(() => {
+  if (!deliveryOptions.value.length) return couriers
+  return deliveryOptions.value.map((item, index) => ({
+    name: item.value,
+    logo: item.value.slice(0, 3).toUpperCase(),
+    color: ['#5d2d82', '#ffcf23', '#2fa7ff', '#737373', '#0398ff', '#ef2b2d'][index % 6],
+    textColor: index % 6 === 1 ? '#111827' : '#ffffff',
+    price: freightInfo.value?.yg_price || 5,
+    tag: index === 0 ? '平台推荐，价格以实时试算为准' : '可选快递类型',
+    apiIndex: item.index,
+  }))
+})
+
 const pageTitle = computed(() => (pageMode.value === 'goods' ? '物品信息' : '寄快递'))
 const currentTabLabel = computed(() => tabs.find((item) => item.key === activeTab.value)?.label || '')
 const goodsSummary = computed(() => `${goodsForm.value.type}，${goodsForm.value.weight}kg，${goodsForm.value.count}件`)
+const displayPrice = computed(() => {
+  if (activeTab.value === 'batch') return 0
+  if (!freightInfo.value) return 3980
+  return Number(freightInfo.value.yg_price || 0)
+})
+const actualPriceText = computed(() => {
+  if (!freightInfo.value) return ''
+  const amount = Number(freightInfo.value.yg_price || 0) - Number(freightInfo.value.yh_price || 0)
+  return `预计实付 ¥${Math.max(amount, 0)}`
+})
 
 const Stepper = defineComponent({
   props: { value: { type: Number, required: true } },
@@ -343,6 +372,7 @@ const SubmitBar = defineComponent({
       h('view', { class: 'submit-row' }, [
         h('view', { class: 'fee' }, [
           h('view', { class: 'fee-line' }, [h('text', null, '运费：'), h('text', { class: 'fee-price' }, `￥${props.price}`)]),
+          actualPriceText.value ? h('view', { class: 'actual-price' }, actualPriceText.value) : null,
           h('view', { class: 'agree' }, [h('view', { class: 'agree-dot' }, '✓'), h('text', null, '我已阅读并同意'), h('text', { class: 'protocol' }, '《寄件服务协议》')]),
         ]),
         h('view', { class: 'submit-button', onClick: submitOrder }, '立即下单'),
@@ -353,6 +383,10 @@ const SubmitBar = defineComponent({
 
 watch(showRemarkPopup, (show) => {
   if (show) remarkDraft.value = remark.value
+})
+
+watch([senderAddress, receiverAddress, weight, activeTab, selectedCourier], () => {
+  estimateFreight()
 })
 
 const openAddressBook = (type) => {
@@ -382,11 +416,64 @@ const saveGoods = () => {
   goodsSaved.value = true
   weight.value = goodsForm.value.weight
   pageMode.value = 'main'
+  estimateFreight()
 }
 
 const confirmBatchCourier = () => {
-  selectedBatchCourier.value = couriers.find((item) => item.name === pendingBatchCourier.value)
+  selectedBatchCourier.value = courierRows.value.find((item) => item.name === pendingBatchCourier.value)
   showCourierPopup.value = false
+}
+
+const getDeliveryIndex = () => {
+  const selected = courierRows.value.find((item) => item.name === selectedCourier.value) || courierRows.value[0]
+  return selected?.apiIndex || deliveryOptions.value[0]?.index || 1
+}
+
+const getGoodsIndex = () => {
+  const selected = goodsOptions.value.find((item) => item.value === goodsForm.value.type)
+  return selected?.index || Math.max(fallbackGoodsTypes.indexOf(goodsForm.value.type) + 1, 1)
+}
+
+const getSubDate = () => {
+  const date = new Date()
+  const pad = (num) => String(num).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} 16:59:59`
+}
+
+const estimateFreight = async () => {
+  if (activeTab.value !== 'normal' || !senderAddress.value?.id || !receiverAddress.value?.id) return
+  estimating.value = true
+  try {
+    freightInfo.value = await orderApi.estimate({
+      sender_id: senderAddress.value.id,
+      recipient_id: receiverAddress.value.id,
+      businessType: getDeliveryIndex(),
+      weight: weight.value,
+      consignedTime: getSubDate(),
+    })
+  } catch (error) {
+    console.warn('estimate freight failed', error)
+  } finally {
+    estimating.value = false
+  }
+}
+
+const loadConfig = async () => {
+  try {
+    const [delivery, goods] = await Promise.all([
+      userApi.getConfig('deliveryType'),
+      userApi.getConfig('itemInfo'),
+    ])
+    deliveryOptions.value = Array.isArray(delivery) ? delivery : []
+    goodsOptions.value = Array.isArray(goods) ? goods : []
+    if (deliveryOptions.value[0]) {
+      selectedCourier.value = deliveryOptions.value[0].value
+      pendingBatchCourier.value = deliveryOptions.value[0].value
+    }
+    if (goodsOptions.value[0]) goodsForm.value.type = goodsOptions.value[0].value
+  } catch (error) {
+    console.warn('load order config failed', error)
+  }
 }
 
 const importExcel = () => {
@@ -408,8 +495,59 @@ const saveRemark = () => {
   showRemarkPopup.value = false
 }
 
-const submitOrder = () => {
-  uni.showToast({ title: '下单信息已保存', icon: 'none' })
+const submitOrder = async () => {
+  if (activeTab.value !== 'normal') {
+    uni.showToast({ title: '批量寄件接口未提供，暂未接入', icon: 'none' })
+    return
+  }
+  if (!senderAddress.value?.id || !receiverAddress.value?.id) {
+    uni.showToast({ title: '请选择寄件和收件地址', icon: 'none' })
+    return
+  }
+  if (!goodsSaved.value) {
+    uni.showToast({ title: '请填写物品信息', icon: 'none' })
+    return
+  }
+  try {
+    const payload = {
+      sender_id: senderAddress.value.id,
+      recipient_id: receiverAddress.value.id,
+      delivery_type: getDeliveryIndex(),
+      item_type: getGoodsIndex(),
+      fragile_type: '2',
+      weight: String(weight.value),
+      number: String(goodsForm.value.count || 1),
+      is_bao_money: goodsForm.value.insuredAmount ? '1' : '2',
+      bao_money: String(goodsForm.value.insuredAmount || 0),
+      pay_method: '1',
+      sub_date: getSubDate(),
+      note: remark.value || '',
+    }
+    const data = await orderApi.create(payload)
+    uni.showToast({ title: '下单成功', icon: 'none' })
+    if (data?.order_id) {
+      try {
+        const payData = await orderApi.pay(data.order_id)
+        const payParam = payData?.payParam
+        if (payParam) {
+          uni.requestPayment({
+            timeStamp: payParam.timeStamp,
+            nonceStr: payParam.nonceStr,
+            package: payParam.package,
+            signType: payParam.signType,
+            paySign: payParam.paySign,
+            success: () => {
+              uni.switchTab({ url: '/pages/express/index' })
+            },
+          })
+        }
+      } catch (payError) {
+        console.warn('pay order failed', payError)
+      }
+    }
+  } catch (error) {
+    uni.showToast({ title: error.message || '下单失败', icon: 'none' })
+  }
 }
 
 const handleBack = () => {
@@ -428,6 +566,7 @@ onMounted(() => {
   eventChannel = current?.getOpenerEventChannel?.()
   const tab = current?.options?.tab
   if (tab === 'batch' || tab === 'large' || tab === 'business') activeTab.value = tab
+  loadConfig()
   if (eventChannel) {
     eventChannel.on?.('selectAddress', (payload) => {
       if (payload.type === 'receiver') receiverAddress.value = payload.address

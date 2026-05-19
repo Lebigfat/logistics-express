@@ -105,6 +105,7 @@
 import { computed, onMounted, ref } from 'vue'
 import AppHead from '@/components/app-head/app-head.vue'
 import UvIcon from '@/components/uv-icon/uv-icon.vue'
+import { addressApi } from '@/services/api'
 
 const pageMode = ref('list')
 const addressType = ref('')
@@ -112,6 +113,7 @@ const parseText = ref('')
 const editingAddressId = ref(null)
 const defaultAddress = ref(true)
 const manageMode = ref(false)
+const loading = ref(false)
 let eventChannel = null
 
 const addressForm = ref({
@@ -139,6 +141,47 @@ const addressList = ref([
     default: false,
   },
 ])
+
+const toViewAddress = (item) => ({
+  id: item.id,
+  name: item.name || '',
+  phone: item.tel || item.phone || '',
+  region: [item.province, item.city, item.district].filter(Boolean).join(' ') || item.region || '',
+  detail: item.address || item.detail || '',
+  default: Boolean(item.default),
+})
+
+const splitRegion = (region) => {
+  const parts = String(region || '').split(/\s+/).filter(Boolean)
+  return {
+    province: parts[0] || '',
+    city: parts[1] || '',
+    district: parts.slice(2).join(' ') || '',
+  }
+}
+
+const toApiAddress = () => {
+  const region = splitRegion(addressForm.value.region)
+  return {
+    name: addressForm.value.name,
+    tel: addressForm.value.phone,
+    ...region,
+    address: addressForm.value.detail,
+  }
+}
+
+const loadAddressList = async () => {
+  loading.value = true
+  try {
+    const data = await addressApi.list()
+    const rows = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : []
+    addressList.value = rows.map(toViewAddress)
+  } catch (error) {
+    console.warn('load address list failed', error)
+  } finally {
+    loading.value = false
+  }
+}
 
 const pageTitle = computed(() => {
   if (pageMode.value === 'form') return editingAddressId.value ? '修改地址' : '添加地址'
@@ -172,12 +215,25 @@ const editAddress = (address) => {
   pageMode.value = 'form'
 }
 
-const deleteAddress = (id) => {
-  addressList.value = addressList.value.filter((item) => item.id !== id)
+const deleteAddress = async (id) => {
+  try {
+    await addressApi.remove(id)
+    addressList.value = addressList.value.filter((item) => item.id !== id)
+    uni.showToast({ title: '已删除', icon: 'none' })
+  } catch (error) {
+    uni.showToast({ title: error.message || '删除失败', icon: 'none' })
+  }
 }
 
-const recognizeAddress = () => {
-  const text = parseText.value.trim()
+const applyParsedAddress = (parsed) => {
+  const region = [parsed.province, parsed.city, parsed.district].filter(Boolean).join(' ')
+  if (parsed.tel || parsed.phone) addressForm.value.phone = parsed.tel || parsed.phone
+  if (parsed.name) addressForm.value.name = parsed.name
+  if (region) addressForm.value.region = region
+  if (parsed.address || parsed.detail) addressForm.value.detail = parsed.address || parsed.detail
+}
+
+const recognizeAddressLocally = (text) => {
   if (!text) return
   const phone = text.match(/1[3-9]\d{9}/)?.[0] || ''
   const parts = text.replace(/[，,。;\n\r]/g, ' ').split(/\s+/).filter(Boolean)
@@ -190,22 +246,39 @@ const recognizeAddress = () => {
   addressForm.value.detail = text.replace(phone, '').replace(name, '').replace(regionMatch?.[0] || '', '').trim()
 }
 
-const saveAddress = () => {
+const recognizeAddress = async () => {
+  const text = parseText.value.trim()
+  if (!text) return
+  try {
+    const data = await addressApi.parse(text)
+    if (data && Object.keys(data).length) {
+      applyParsedAddress(data)
+      return
+    }
+  } catch (error) {
+    console.warn('parse address failed', error)
+  }
+  recognizeAddressLocally(text)
+}
+
+const saveAddress = async () => {
   if (!addressForm.value.name || !addressForm.value.phone || !addressForm.value.detail) {
     uni.showToast({ title: '请填写完整地址', icon: 'none' })
     return
   }
 
-  const payload = { ...addressForm.value, default: defaultAddress.value }
-  if (payload.default) addressList.value = addressList.value.map((item) => ({ ...item, default: false }))
-
-  if (editingAddressId.value) {
-    addressList.value = addressList.value.map((item) => (item.id === editingAddressId.value ? { ...item, ...payload } : item))
-  } else {
-    addressList.value.push({ id: Date.now(), ...payload })
+  const apiPayload = toApiAddress()
+  try {
+    if (editingAddressId.value) {
+      await addressApi.update({ ...apiPayload, id: editingAddressId.value })
+    } else {
+      await addressApi.create(apiPayload)
+    }
+    await loadAddressList()
+    pageMode.value = 'list'
+  } catch (error) {
+    uni.showToast({ title: error.message || '保存失败', icon: 'none' })
   }
-
-  pageMode.value = 'list'
 }
 
 onMounted(() => {
@@ -213,6 +286,7 @@ onMounted(() => {
   const currentPage = pages[pages.length - 1]
   eventChannel = currentPage?.getOpenerEventChannel?.()
   addressType.value = currentPage?.options?.type || ''
+  loadAddressList()
 })
 </script>
 

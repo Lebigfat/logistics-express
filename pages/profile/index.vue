@@ -9,16 +9,17 @@
 
       <view class="user-row">
         <view class="avatar-wrap">
-          <view class="avatar">
+          <image v-if="userInfo.avatar" class="avatar-img" :src="userInfo.avatar" mode="aspectFill"></image>
+          <view v-else class="avatar">
             <view class="avatar-head"></view>
             <view class="avatar-body"></view>
           </view>
           <view class="sync-tag">同步头像⟳</view>
         </view>
         <view class="user-info">
-          <text class="user-name">微信用户...</text>
+          <text class="user-name">{{ userInfo.nickname || '微信用户...' }}</text>
           <view class="invite-row">
-            <text class="invite-text">邀请码:103794242</text>
+            <text class="invite-text">邀请码:{{ inviteCode }}</text>
             <view class="copy-btn" @tap="copyCode">复制</view>
           </view>
         </view>
@@ -68,7 +69,13 @@
 </template>
 
 <script setup>
+import { computed, onMounted, ref } from 'vue'
 import UvIcon from '@/components/uv-icon/uv-icon.vue'
+import { getStoredUser } from '@/services/request'
+import { userApi } from '@/services/api'
+
+const userInfo = ref(getStoredUser() || {})
+const inviteCode = computed(() => userInfo.value.user_id || userInfo.value.id || '103794242')
 
 const quickItems = [
   { title: '优惠券', icon: '券', url: '/pages/coupon/index' },
@@ -77,11 +84,11 @@ const quickItems = [
   { title: '邀请好友', icon: '✉', url: '/pages/share/index' },
 ]
 
-const walletItems = [
-  { label: '余额', value: '0' },
-  { label: '待入账', value: '0' },
-  { label: '体现次数', value: '0' },
-]
+const walletItems = computed(() => [
+  { label: '余额', value: userInfo.value.money || '0' },
+  { label: '待入账', value: userInfo.value.pending_money || '0' },
+  { label: '提现次数', value: userInfo.value.withdraw_count || '0' },
+])
 
 const functionItems = [
   { title: '余额提现', icon: '▱' },
@@ -99,8 +106,18 @@ const go = (url) => {
 }
 
 const copyCode = () => {
-  uni.setClipboardData({ data: '103794242' })
+  uni.setClipboardData({ data: String(inviteCode.value) })
 }
+
+const loadUserInfo = async () => {
+  try {
+    userInfo.value = await userApi.getUserInfo()
+  } catch (error) {
+    console.warn('load user info failed', error)
+  }
+}
+
+onMounted(loadUserInfo)
 </script>
 
 <style>
@@ -162,7 +179,8 @@ page {
   position: relative;
 }
 
-.avatar {
+.avatar,
+.avatar-img {
   width: 120rpx;
   height: 120rpx;
   overflow: hidden;
@@ -171,6 +189,10 @@ page {
   border-radius: 50%;
   background: #c6c6c6;
   box-sizing: border-box;
+}
+
+.avatar-img {
+  display: block;
 }
 
 .avatar-head {

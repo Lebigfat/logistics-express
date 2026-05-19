@@ -15,14 +15,36 @@
       </view>
 
       <scroll-view scroll-x class="status-tabs" show-scrollbar="false">
-        <view v-for="item in tabs" :key="item" class="status-tab" :class="{ active: activeTab === item }" @tap="activeTab = item">
-          <text>{{ item }}</text>
+        <view v-for="item in tabs" :key="item.label" class="status-tab" :class="{ active: activeTab.value === item.value }" @tap="activeTab = item">
+          <text>{{ item.label }}</text>
         </view>
       </scroll-view>
     </view>
 
     <view class="content">
-      <view class="empty-state">
+      <view v-if="orders.length" class="order-list">
+        <view v-for="item in orders" :key="item.id" class="order-card">
+          <view class="order-head">
+            <text>{{ item.order_sn || `订单 ${item.id}` }}</text>
+            <text class="order-status">{{ statusText(item.status) }}</text>
+          </view>
+          <view class="order-row">
+            <text>重量 {{ item.weight || '-' }}kg</text>
+            <text>件数 {{ item.number || '-' }}</text>
+          </view>
+          <view class="order-row">
+            <text>实付 ¥{{ item.actual_payment_price || item.origin_price || '0.00' }}</text>
+            <text>{{ item.createtime || '' }}</text>
+          </view>
+          <view class="order-actions">
+            <view v-if="Number(item.status) === 1" class="outline-btn" @tap="cancelOrder(item)">取消订单</view>
+            <view v-if="Number(item.status) === 1" class="primary-btn" @tap="payOrder(item)">去支付</view>
+            <view v-if="Number(item.status) >= 2" class="primary-btn" @tap="queryLogistics(item)">查看物流</view>
+          </view>
+        </view>
+      </view>
+
+      <view v-else class="empty-state">
         <text class="empty-title">您还没有进行寄件下单</text>
         <text class="empty-desc">可以先去寄件哦</text>
         <view class="send-btn" @tap="goSend">去寄件</view>
@@ -40,17 +62,89 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import UvIcon from '@/components/uv-icon/uv-icon.vue'
+import { orderApi } from '@/services/api'
 
-const tabs = ['全部快递', '待揽件', '运输中', '已签收', '已取消']
-const activeTab = ref('全部快递')
+const tabs = [
+  { label: '全部快递', value: '' },
+  { label: '待付款', value: '1' },
+  { label: '已付款', value: '2' },
+  { label: '运输中', value: '4' },
+  { label: '已取消', value: '5' },
+]
+const activeTab = ref(tabs[0])
 const keyword = ref('')
 const showFollow = ref(true)
+const orders = ref([])
 
 const goSend = () => {
   uni.navigateTo({ url: '/pages/send/index' })
 }
+
+const loadOrders = async () => {
+  try {
+    const data = await orderApi.list({ tabType: activeTab.value.value })
+    const rows = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : []
+    orders.value = rows
+  } catch (error) {
+    console.warn('load order list failed', error)
+    orders.value = []
+  }
+}
+
+const statusText = (status) => {
+  const map = { 1: '待付款', 2: '已付款', 3: '到付单', 4: '运输中', 5: '已取消' }
+  return map[Number(status)] || '全部'
+}
+
+const cancelOrder = async (item) => {
+  try {
+    await orderApi.cancel(item.id)
+    uni.showToast({ title: '已取消', icon: 'none' })
+    loadOrders()
+  } catch (error) {
+    uni.showToast({ title: error.message || '取消失败', icon: 'none' })
+  }
+}
+
+const payOrder = async (item) => {
+  try {
+    const data = await orderApi.pay(item.id)
+    const payParam = data?.payParam
+    if (payParam) {
+      uni.requestPayment({
+        timeStamp: payParam.timeStamp,
+        nonceStr: payParam.nonceStr,
+        package: payParam.package,
+        signType: payParam.signType,
+        paySign: payParam.paySign,
+        success: loadOrders,
+      })
+    } else {
+      uni.showToast({ title: '支付参数缺失', icon: 'none' })
+    }
+  } catch (error) {
+    uni.showToast({ title: error.message || '支付失败', icon: 'none' })
+  }
+}
+
+const queryLogistics = async (item) => {
+  try {
+    const data = await orderApi.logistics(item.id)
+    const route = data?.routeResps?.[0]?.routes?.[0]
+    uni.showModal({
+      title: data?.routeResps?.[0]?.mailNo || '物流信息',
+      content: route ? `${route.acceptTime || ''}\n${route.remark || ''}` : '暂无物流轨迹',
+      showCancel: false,
+    })
+  } catch (error) {
+    uni.showToast({ title: error.message || '查询失败', icon: 'none' })
+  }
+}
+
+watch(activeTab, loadOrders)
+onMounted(loadOrders)
 </script>
 
 <style>
@@ -166,16 +260,80 @@ page {
 
 .content {
   min-height: calc(100vh - 264rpx - 190rpx - env(safe-area-inset-bottom));
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  padding: 24rpx 30rpx;
+  box-sizing: border-box;
 }
 
 .empty-state {
+  min-height: 620rpx;
   margin-top: -42rpx;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
+}
+
+.order-list {
+  padding-bottom: 120rpx;
+}
+
+.order-card {
+  margin-bottom: 20rpx;
+  padding: 24rpx;
+  border-radius: 14rpx;
+  background: #ffffff;
+}
+
+.order-head,
+.order-row,
+.order-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.order-head {
+  font-size: 28rpx;
+  font-weight: 700;
+}
+
+.order-status {
+  color: #438bff;
+  font-size: 24rpx;
+  font-weight: 500;
+}
+
+.order-row {
+  margin-top: 16rpx;
+  color: #8b95a1;
+  font-size: 24rpx;
+}
+
+.order-actions {
+  justify-content: flex-end;
+  gap: 16rpx;
+  margin-top: 22rpx;
+}
+
+.outline-btn,
+.primary-btn {
+  height: 52rpx;
+  padding: 0 22rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 28rpx;
+  font-size: 24rpx;
+}
+
+.outline-btn {
+  border: 1rpx solid #cfd6e0;
+  color: #6b7280;
+}
+
+.primary-btn {
+  background: #438bff;
+  color: #ffffff;
 }
 
 .empty-title {
