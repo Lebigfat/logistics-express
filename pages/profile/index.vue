@@ -8,16 +8,17 @@
       </view>
 
       <view class="user-row">
-        <view class="avatar-wrap">
+        <view class="avatar-wrap" @tap="goLogin">
           <image v-if="userInfo.avatar" class="avatar-img" :src="userInfo.avatar" mode="aspectFill"></image>
           <view v-else class="avatar">
             <view class="avatar-head"></view>
             <view class="avatar-body"></view>
           </view>
-          <view class="sync-tag">同步头像⟳</view>
+          <view class="sync-tag">{{ isLoggedIn ? '已登录' : '去登录' }}</view>
         </view>
         <view class="user-info">
           <text class="user-name">{{ userInfo.nickname || '微信用户...' }}</text>
+          <text class="login-state">{{ isLoggedIn ? '已登录' : '未登录' }}</text>
           <view class="invite-row">
             <text class="invite-text">邀请码:{{ inviteCode }}</text>
             <view class="copy-btn" @tap="copyCode">复制</view>
@@ -27,6 +28,11 @@
     </view>
 
     <view class="content">
+      <view v-if="!isLoggedIn" class="login-entry" @tap="goLogin">
+        <text>去登录</text>
+        <UvIcon name="arrow-right" color="#ffffff" size="18"></UvIcon>
+      </view>
+
       <view class="quick-card">
         <view v-for="item in quickItems" :key="item.title" class="quick-item" @tap="go(item.url)">
           <view class="quick-icon">{{ item.icon }}</view>
@@ -75,13 +81,14 @@ import { getStoredUser } from '@/services/request'
 import { userApi } from '@/services/api'
 
 const userInfo = ref(getStoredUser() || {})
+const isLoggedIn = computed(() => Boolean(userInfo.value?.token))
 const inviteCode = computed(() => userInfo.value.user_id || userInfo.value.id || '103794242')
 
 const quickItems = [
   { title: '优惠券', icon: '券', url: '/pages/coupon/index' },
   { title: '地址管理', icon: '⌖', url: '/pages/address/index' },
-  { title: '费用补缴', icon: '¥' },
-  { title: '邀请好友', icon: '✉', url: '/pages/share/index' },
+  { title: '费用补即', icon: '$' },
+  { title: '邀请好友', icon: '✓', url: '/pages/share/index' },
 ]
 
 const walletItems = computed(() => [
@@ -91,18 +98,22 @@ const walletItems = computed(() => [
 ])
 
 const functionItems = [
-  { title: '余额提现', icon: '▱' },
-  { title: '团队列表', icon: '☏' },
+  { title: '余额提现', icon: '$' },
+  { title: '团队列表', icon: '◉' },
   { title: '佣金规则', icon: '?' },
-  { title: '填写邀请码', icon: '▤' },
-  { title: '团队订单', icon: '▧' },
+  { title: '填写邀请码', icon: '⌖' },
+  { title: '团队订单', icon: '◈' },
   { title: '搜索上级', icon: '⌕' },
   { title: '设置', icon: '⚙' },
-  { title: '联系客服', icon: '☻' },
+  { title: '联系客服', icon: '◎' },
 ]
 
 const go = (url) => {
   if (url) uni.navigateTo({ url })
+}
+
+const goLogin = () => {
+  uni.navigateTo({ url: '/pages/login/index' })
 }
 
 const copyCode = () => {
@@ -110,6 +121,7 @@ const copyCode = () => {
 }
 
 const loadUserInfo = async () => {
+  if (!isLoggedIn.value) return
   try {
     userInfo.value = await userApi.getUserInfo()
   } catch (error) {
@@ -240,6 +252,13 @@ page {
   font-weight: 700;
 }
 
+.login-state {
+  display: block;
+  margin-top: 10rpx;
+  color: #6b7280;
+  font-size: 22rpx;
+}
+
 .invite-row {
   margin-top: 20rpx;
   display: flex;
@@ -269,12 +288,25 @@ page {
   padding: 0 30rpx 30rpx;
 }
 
+.login-entry,
 .quick-card,
 .wallet-card,
 .function-card {
   border-radius: 14rpx;
   background: #ffffff;
   box-sizing: border-box;
+}
+
+.login-entry {
+  height: 84rpx;
+  margin-bottom: 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #438bff;
+  color: #ffffff;
+  font-size: 28rpx;
+  font-weight: 700;
 }
 
 .quick-card {
