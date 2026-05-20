@@ -1,6 +1,6 @@
 <template>
   <view class="send-page">
-    <AppHead :title="pageTitle">
+    <AppHead :title="pageTitle" background-color="#ffffff" title-color="#111827" icon-color="#111827">
       <template #left>
         <view class="head-back" @tap="handleBack">
           <UvIcon name="arrow-left" color="#1f2937" size="21"></UvIcon>
@@ -16,538 +16,743 @@
     </AppHead>
 
     <template v-if="pageMode === 'main'">
-      <view class="tab-bar">
+      <scroll-view scroll-x class="tab-scroll" show-scrollbar="false">
         <view
           v-for="tab in tabs"
           :key="tab.key"
           class="tab-item"
           :class="{ active: activeTab === tab.key }"
-          @tap="activeTab = tab.key"
+          @tap="changeTab(tab.key)"
         >
-          <text>{{ tab.label }}</text>
+          {{ tab.label }}
         </view>
-      </view>
+      </scroll-view>
 
       <scroll-view scroll-y class="content">
-        <template v-if="activeTab === 'normal'">
-          <AddressCard />
+        <view v-if="activeTab !== 'normal'" class="api-missing-card">
+          <view class="missing-title">{{ currentTabLabel }}后端能力未提供</view>
+          <text class="missing-desc">{{ missingApiMessage }}</text>
+        </view>
 
-          <view class="info-card">
-            <view class="cell head-cell" @tap="pageMode = 'goods'">
-              <view class="cell-left">
+        <view class="address-card">
+          <view class="address-line" @tap="openAddressPicker('sender')">
+            <view class="step">
+              <view class="step-dot sender">寄</view>
+              <view class="step-wire"></view>
+            </view>
+            <view class="address-copy">
+              <text class="address-title">{{ addressTitle(senderAddress, '请选择寄件人') }}</text>
+              <text class="address-desc">{{ addressDetail(senderAddress, '从地址簿选择寄件地址') }}</text>
+            </view>
+            <view class="book-link">地址簿</view>
+          </view>
+          <view class="address-divider"></view>
+          <view class="address-line" @tap="openAddressPicker('receiver')">
+            <view class="step">
+              <view class="step-dot receiver">收</view>
+            </view>
+            <view class="address-copy">
+              <text class="address-title">{{ addressTitle(receiverAddress, '请选择收件人') }}</text>
+              <text class="address-desc">{{ addressDetail(receiverAddress, '从地址簿选择收件地址') }}</text>
+            </view>
+            <view class="book-link">地址簿</view>
+          </view>
+        </view>
+
+        <view v-if="activeTab === 'batch'" class="form-card">
+          <view class="section-head">
+            <text>批量收件人</text>
+            <text class="section-count">{{ batchReceivers.length }} 人</text>
+          </view>
+          <textarea
+            v-model="batchText"
+            class="batch-textarea"
+            placeholder="每行一个收件人，格式示例：张三 13800138000 四川省 成都市 高新区 天府大道1号"
+            placeholder-class="placeholder"
+          />
+          <view class="inline-actions">
+            <view class="outline-action" @tap="addReceiverFromCurrent">加入当前收件人</view>
+            <view class="primary-action" @tap="parseBatchReceivers">本地识别</view>
+          </view>
+          <view v-if="batchReceivers.length" class="receiver-list">
+            <view v-for="(item, index) in batchReceivers" :key="`${item.phone}-${index}`" class="receiver-item">
+              <view>
+                <text class="receiver-name">{{ item.name || `收件人${index + 1}` }}</text>
+                <text class="receiver-phone">{{ item.phone || '未识别手机号' }}</text>
+              </view>
+              <text class="receiver-address">{{ item.address || '地址待补充' }}</text>
+            </view>
+          </view>
+        </view>
+
+        <view v-if="activeTab === 'large'" class="form-card">
+          <view class="section-head">
+            <text>大件信息</text>
+            <text class="section-hint">本地草稿</text>
+          </view>
+          <view class="field-row">
+            <text class="field-label">预估重量</text>
+            <input v-model="goodsForm.weight" class="field-input" type="number" placeholder="30" />
+            <text class="field-unit">kg</text>
+          </view>
+          <view class="field-row">
+            <text class="field-label">体积尺寸</text>
+            <input v-model="goodsForm.length" class="size-input" type="number" placeholder="长" />
+            <input v-model="goodsForm.width" class="size-input" type="number" placeholder="宽" />
+            <input v-model="goodsForm.height" class="size-input" type="number" placeholder="高" />
+            <text class="field-unit">cm</text>
+          </view>
+          <view class="hint-box">文档只提供通用快递下单接口，未提供大件专属服务类型、车型、加收规则或大件下单接口。</view>
+        </view>
+
+        <view v-if="activeTab === 'business'" class="form-card">
+          <view class="section-head">
+            <text>商家寄件</text>
+            <text class="section-hint">本地草稿</text>
+          </view>
+          <view class="field-row">
+            <text class="field-label">店铺/公司</text>
+            <input v-model="businessForm.company" class="field-input" placeholder="请输入名称" />
+          </view>
+          <view class="field-row">
+            <text class="field-label">外部单号</text>
+            <input v-model="businessForm.tradeNo" class="field-input" placeholder="选填" />
+          </view>
+          <view class="field-row">
+            <text class="field-label">结算方式</text>
+            <view class="segmented">
+              <view
+                v-for="item in businessPayOptions"
+                :key="item.value"
+                class="segmented-item"
+                :class="{ active: businessForm.settleType === item.value }"
+                @tap="businessForm.settleType = item.value"
+              >
+                {{ item.label }}
+              </view>
+            </view>
+          </view>
+          <view class="hint-box">文档未提供商家客户、月结、电子面单或批量商家下单接口，本页仅保留填写和本地校验流程。</view>
+        </view>
+
+        <view class="form-card">
+          <view class="cell head-cell" @tap="pageMode = 'goods'">
+            <view>
+              <view class="cell-title-row">
                 <text class="cell-title">物品信息</text>
                 <text v-if="!goodsSaved" class="required">必填</text>
-                <text v-else class="goods-summary">{{ goodsSummary }}</text>
               </view>
-              <UvIcon name="arrow-right" color="#1f2937" size="18"></UvIcon>
+              <text class="cell-subtitle">{{ goodsSaved ? goodsSummary : '类型、重量、件数、保价' }}</text>
             </view>
-            <view class="cell">
-              <text class="cell-title">快递重量（kg）</text>
-              <Stepper v-model:value="weight" />
-            </view>
-            <view class="cell" @tap="goCoupon">
-              <text class="cell-title">优惠券</text>
-              <view class="cell-right">
-                <text>{{ selectedCoupon ? `${selectedCoupon.title} -¥${selectedCoupon.amount}` : '未使用' }}</text>
-                <UvIcon name="arrow-right" color="#9ca3af" size="15"></UvIcon>
-              </view>
-            </view>
-            <view class="cell last" @tap="showRemarkPopup = true">
-              <text class="cell-title">备注</text>
-              <view class="cell-right">
-                <text>{{ remark || '选填' }}</text>
-                <UvIcon name="arrow-right" color="#9ca3af" size="15"></UvIcon>
+            <UvIcon name="arrow-right" color="#9ca3af" size="16"></UvIcon>
+          </view>
+          <view class="cell">
+            <text class="cell-title">快递类型</text>
+            <picker :range="deliveryLabels" :value="deliveryIndex" @change="handleDeliveryChange">
+              <view class="picker-value">{{ selectedDeliveryLabel }}</view>
+            </picker>
+          </view>
+          <view class="cell">
+            <text class="cell-title">预约日期</text>
+            <picker mode="date" :value="scheduleDate" @change="scheduleDate = $event.detail.value">
+              <view class="picker-value">{{ scheduleDate }}</view>
+            </picker>
+          </view>
+          <view class="cell">
+            <text class="cell-title">预约时间</text>
+            <picker mode="time" :value="scheduleTime" @change="scheduleTime = $event.detail.value">
+              <view class="picker-value">{{ scheduleTime }}</view>
+            </picker>
+          </view>
+          <view class="cell">
+            <text class="cell-title">付款方式</text>
+            <view class="segmented pay-segmented">
+              <view
+                v-for="item in payMethods"
+                :key="item.value"
+                class="segmented-item"
+                :class="{ active: payMethod === item.value }"
+                @tap="payMethod = item.value"
+              >
+                {{ item.label }}
               </view>
             </view>
           </view>
-
-          <CourierList :items="courierRows" v-model:selected="selectedCourier" />
-        </template>
-
-        <template v-else-if="activeTab === 'batch'">
-          <view class="batch-address-card">
-            <view class="batch-address-row">
-              <view class="step-dot sender">寄</view>
-              <text class="batch-main-text">{{ senderAddress ? `${senderAddress.name} ${senderAddress.phone}` : '新建寄件人' }}</text>
-              <text class="book-link" @tap="openAddressBook('sender')">地址簿</text>
-            </view>
+          <view class="cell note-cell">
+            <text class="cell-title">备注</text>
+            <input v-model="note" class="note-input" placeholder="给快递员留言，选填" />
           </view>
+        </view>
 
-          <view class="batch-info-card">
-            <text class="batch-section-title">收件人信息</text>
-            <view class="batch-tool-row">
-              <view class="batch-tool" @tap="openAddressBook('receiver')">
-                <UvIcon name="map" color="#1f2937" size="18"></UvIcon>
-                <text>地址簿选择</text>
-              </view>
-              <view class="batch-tool" @tap="showExcelPopup = true">
-                <UvIcon name="file-text" color="#1f2937" size="18"></UvIcon>
-                <text>Excel导入</text>
-              </view>
-              <view class="batch-tool" @tap="showRecognizePopup = true">
-                <UvIcon name="scan" color="#1f2937" size="18"></UvIcon>
-                <text>批量识别</text>
-              </view>
-            </view>
-            <view v-if="batchReceivers.length" class="receiver-count">已添加 {{ batchReceivers.length }} 个收件人</view>
+        <view class="estimate-card">
+          <view class="section-head">
+            <text>费用预估</text>
+            <text class="section-hint">{{ estimating ? '试算中' : estimateStateText }}</text>
           </view>
-
-          <view class="batch-courier-card" @tap="showCourierPopup = true">
-            <text class="cell-title">快递公司</text>
-            <view class="cell-right">
-              <text>{{ selectedBatchCourier ? selectedBatchCourier.name : '请选择' }}</text>
-              <UvIcon name="arrow-right" color="#1f2937" size="18"></UvIcon>
-            </view>
+          <view class="money-row">
+            <text>预估运费</text>
+            <text class="money">¥{{ moneyText(estimateInfo.yg_price) }}</text>
           </view>
-        </template>
+          <view class="money-row">
+            <text>优惠金额</text>
+            <text>-¥{{ moneyText(estimateInfo.yh_price) }}</text>
+          </view>
+          <view class="money-row">
+            <text>折扣</text>
+            <text>{{ estimateInfo.discount ? `${estimateInfo.discount}折` : '无' }}</text>
+          </view>
+          <view class="actual-row">
+            <text>预计实付</text>
+            <text>¥{{ actualAmountText }}</text>
+          </view>
+        </view>
 
-        <view v-else class="empty-panel">
-          <text>{{ currentTabLabel }}</text>
-          <text class="empty-desc">当前服务可在普通寄件流程下单</text>
+        <view v-if="forbiddenText || billingText" class="rules-card">
+          <view v-if="forbiddenText" class="rule-block">
+            <text class="rule-title">禁寄说明</text>
+            <text class="rule-content">{{ forbiddenText }}</text>
+          </view>
+          <view v-if="billingText" class="rule-block">
+            <text class="rule-title">计费规则</text>
+            <text class="rule-content">{{ billingText }}</text>
+          </view>
         </view>
 
         <view class="bottom-space"></view>
       </scroll-view>
 
-      <SubmitBar :price="displayPrice" />
+      <view class="submit-bar">
+        <view class="submit-copy">
+          <view class="submit-price">
+            <text>合计</text>
+            <text class="submit-money">¥{{ activeTab === 'normal' ? actualAmountText : '0.00' }}</text>
+          </view>
+          <text class="submit-tip">{{ submitTip }}</text>
+        </view>
+        <view class="submit-button" :class="{ disabled: submitting }" @tap="submitCurrentFlow">
+          {{ submitButtonText }}
+        </view>
+      </view>
     </template>
 
     <template v-else>
       <scroll-view scroll-y class="goods-scroll">
         <view class="goods-section">
           <text class="goods-label">物品类型</text>
-          <view class="goods-type-grid">
+          <view class="goods-grid">
             <view
-              v-for="item in goodsTypes"
-              :key="item"
+              v-for="item in itemOptions"
+              :key="item.index"
               class="goods-type"
-              :class="{ active: goodsForm.type === item }"
-              @tap="goodsForm.type = item"
+              :class="{ active: goodsForm.itemIndex === item.index }"
+              @tap="goodsForm.itemIndex = item.index"
             >
-              {{ item }}
+              {{ item.value }}
             </view>
           </view>
         </view>
 
-        <view class="goods-card">
-          <view class="goods-row goods-price-row">
-            <view>
-              <view class="goods-row-title">
-                <text>报价金额（元）</text>
-                <text class="help-icon">?</text>
+        <view class="form-card goods-form-card">
+          <view class="field-row">
+            <text class="field-label">是否易碎</text>
+            <view class="segmented">
+              <view
+                v-for="item in yesNoOptions"
+                :key="item.value"
+                class="segmented-item"
+                :class="{ active: goodsForm.fragileType === item.value }"
+                @tap="goodsForm.fragileType = item.value"
+              >
+                {{ item.label }}
               </view>
-              <text class="goods-tip">保价丢件可赔付</text>
-            </view>
-            <input v-model="goodsForm.insuredAmount" class="goods-input" type="number" placeholder="请输入金额" />
-          </view>
-          <view class="goods-row">
-            <text class="goods-row-title">快递重量（kg）</text>
-            <Stepper v-model:value="goodsForm.weight" />
-          </view>
-          <view class="goods-row">
-            <text class="goods-row-title">体积重量</text>
-            <view class="volume-inputs">
-              <input v-model="goodsForm.length" type="number" placeholder="长(cm)" />
-              <input v-model="goodsForm.width" type="number" placeholder="宽(cm)" />
-              <input v-model="goodsForm.height" type="number" placeholder="高(cm)" />
             </view>
           </view>
-          <view class="goods-row">
-            <text class="goods-row-title">件数</text>
-            <Stepper v-model:value="goodsForm.count" />
+          <view class="field-row">
+            <text class="field-label">预估重量</text>
+            <input v-model="goodsForm.weight" class="field-input" type="number" placeholder="请输入整数" />
+            <text class="field-unit">kg</text>
+          </view>
+          <view class="field-row">
+            <text class="field-label">件数</text>
+            <view class="stepper">
+              <view class="stepper-btn" @tap="changeNumber(-1)">-</view>
+              <text class="stepper-value">{{ goodsForm.number }}</text>
+              <view class="stepper-btn" @tap="changeNumber(1)">+</view>
+            </view>
+          </view>
+          <view class="field-row">
+            <text class="field-label">是否保价</text>
+            <view class="segmented">
+              <view
+                v-for="item in yesNoOptions"
+                :key="item.value"
+                class="segmented-item"
+                :class="{ active: goodsForm.isBaoMoney === item.value }"
+                @tap="goodsForm.isBaoMoney = item.value"
+              >
+                {{ item.label }}
+              </view>
+            </view>
+          </view>
+          <view v-if="goodsForm.isBaoMoney === '1'" class="field-row">
+            <text class="field-label">保价金额</text>
+            <input v-model="goodsForm.baoMoney" class="field-input" type="number" placeholder="请输入金额" />
+            <text class="field-unit">元</text>
+          </view>
+          <view class="field-row">
+            <text class="field-label">体积尺寸</text>
+            <input v-model="goodsForm.length" class="size-input" type="number" placeholder="长" />
+            <input v-model="goodsForm.width" class="size-input" type="number" placeholder="宽" />
+            <input v-model="goodsForm.height" class="size-input" type="number" placeholder="高" />
+            <text class="field-unit">cm</text>
           </view>
         </view>
 
         <view class="goods-note">
-          <text class="goods-note-title">重要提示：</text>
-          <text>1、根据快递行业惯例，体积重量大于称重重量时，将按体积重量计算运费。</text>
-          <text class="blue-text">2、请如实填写重量，快递员上门后计算重量大于下单重量的，可回到平台补缴运费。</text>
-          <text>3、计费重量不足1kg的包裹按1kg计算，超出部分按进位计算。</text>
-          <text>4、托寄物品应遵守国家相关规定。</text>
+          <text>重量字段按文档要求只提交 kg 整数；体积尺寸用于本地提示，当前下单接口没有体积字段。</text>
+          <text>保价按文档字段 is_bao_money 与 bao_money 提交；未保价时金额提交 0。</text>
         </view>
       </scroll-view>
-
       <view class="save-bar">
         <view class="save-btn" @tap="saveGoods">保存</view>
       </view>
     </template>
 
-    <view v-if="showCourierPopup" class="popup-mask" @tap.self="showCourierPopup = false">
-      <view class="courier-popup">
+    <view v-if="addressPickerVisible" class="popup-mask" @tap.self="addressPickerVisible = false">
+      <view class="address-popup">
         <view class="popup-head">
-          <view class="popup-side"></view>
-          <text class="popup-title">选择快递公司</text>
-          <view class="popup-close" @tap="showCourierPopup = false">
-            <UvIcon name="close" color="#9ca3af" size="20"></UvIcon>
+          <text>{{ pickingRole === 'sender' ? '选择寄件地址' : '选择收件地址' }}</text>
+          <view class="close-btn" @tap="addressPickerVisible = false">×</view>
+        </view>
+        <view v-if="addressLoading" class="popup-empty">地址加载中...</view>
+        <view v-else-if="!addressList.length" class="popup-empty">
+          <text>暂无地址</text>
+          <text class="popup-empty-desc">本页仅允许使用 addressApi.list/detail，新增地址请到地址簿维护。</text>
+        </view>
+        <scroll-view v-else scroll-y class="address-popup-list">
+          <view v-for="item in addressList" :key="item.id" class="address-option" @tap="selectAddress(item)">
+            <view class="address-option-head">
+              <text>{{ item.name || '未命名' }}</text>
+              <text>{{ item.phone || '-' }}</text>
+            </view>
+            <text class="address-option-detail">{{ addressDetail(item, '-') }}</text>
           </view>
-        </view>
-        <CourierList :items="courierRows" v-model:selected="pendingBatchCourier" compact />
-        <view class="popup-confirm" @tap="confirmBatchCourier">确定</view>
-      </view>
-    </view>
-
-    <view v-if="showExcelPopup" class="popup-mask" @tap.self="showExcelPopup = false">
-      <view class="sheet-popup">
-        <text class="sheet-title">Excel导入</text>
-        <text class="sheet-desc">请按模板整理收件人姓名、电话、省市区和详细地址，导入后可继续编辑。</text>
-        <view class="sheet-card">
-          <text>收件人导入模板.xlsx</text>
-          <view class="sheet-btn" @tap="importExcel">模拟导入</view>
-        </view>
-      </view>
-    </view>
-
-    <view v-if="showRecognizePopup" class="popup-mask" @tap.self="showRecognizePopup = false">
-      <view class="sheet-popup">
-        <text class="sheet-title">批量识别</text>
-        <textarea v-model="recognizeText" class="recognize-area" placeholder="粘贴多个收件人地址，每行一个：姓名 手机号 省市区 详细地址" />
-        <view class="popup-confirm" @tap="confirmRecognize">确定</view>
-      </view>
-    </view>
-
-    <view v-if="showRemarkPopup" class="popup-mask" @tap.self="showRemarkPopup = false">
-      <view class="sheet-popup">
-        <text class="sheet-title">备注</text>
-        <textarea v-model="remarkDraft" class="recognize-area" placeholder="请输入给快递员的备注" />
-        <view class="popup-confirm" @tap="saveRemark">确定</view>
+        </scroll-view>
       </view>
     </view>
   </view>
 </template>
 
 <script setup>
-import { computed, defineComponent, h, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import AppHead from '@/components/app-head/app-head.vue'
 import UvIcon from '@/components/uv-icon/uv-icon.vue'
-import { orderApi, userApi } from '@/services/api'
+import { addressApi, orderApi, userApi } from '@/services/api'
 
 const tabs = [
   { key: 'normal', label: '寄快递' },
   { key: 'batch', label: '批量寄件' },
   { key: 'large', label: '寄大件' },
-  { key: 'warehouse', label: '寄得物仓' },
   { key: 'business', label: '商家寄件' },
+]
+
+const payMethods = [
+  { label: '寄付', value: '1' },
+  { label: '到付', value: '2' },
+]
+
+const yesNoOptions = [
+  { label: '是', value: '1' },
+  { label: '否', value: '2' },
+]
+
+const businessPayOptions = [
+  { label: '现付', value: 'cash' },
+  { label: '月结', value: 'monthly' },
+]
+
+const fallbackDeliveryOptions = [
+  { index: 1, value: '标准快递' },
+  { index: 2, value: '特快' },
+]
+
+const fallbackItemOptions = [
+  { index: 1, value: '文件' },
+  { index: 2, value: '电子产品' },
+  { index: 3, value: '食品' },
+  { index: 4, value: '服装鞋帽' },
+  { index: 5, value: '其他' },
 ]
 
 const pageMode = ref('main')
 const activeTab = ref('normal')
-const weight = ref(2)
 const senderAddress = ref(null)
 const receiverAddress = ref(null)
+const addressList = ref([])
+const addressLoading = ref(false)
+const addressPickerVisible = ref(false)
+const pickingRole = ref('sender')
+const deliveryOptions = ref(fallbackDeliveryOptions)
+const itemOptions = ref(fallbackItemOptions)
+const selectedDeliveryIndex = ref(fallbackDeliveryOptions[0].index)
+const scheduleDate = ref('')
+const scheduleTime = ref('16:00')
+const payMethod = ref('1')
+const note = ref('')
 const goodsSaved = ref(false)
-const selectedCoupon = ref(null)
-const selectedCourier = ref('圆通')
-const selectedBatchCourier = ref(null)
-const pendingBatchCourier = ref('圆通')
-const freightInfo = ref(null)
+const estimateInfo = ref({})
 const estimating = ref(false)
-const deliveryOptions = ref([])
-const goodsOptions = ref([])
-const showCourierPopup = ref(false)
-const showExcelPopup = ref(false)
-const showRecognizePopup = ref(false)
-const showRemarkPopup = ref(false)
+const submitting = ref(false)
+const forbiddenText = ref('')
+const billingText = ref('')
+const batchText = ref('')
 const batchReceivers = ref([])
-const recognizeText = ref('')
-const remark = ref('')
-const remarkDraft = ref('')
-let eventChannel = null
 
-const fallbackGoodsTypes = ['食品饮品', '潮玩', '美妆', '数码电器', '家具', '零食', '酒水', '文件', '日用品', '图书', '箱包', '其他']
-const goodsTypes = computed(() => (goodsOptions.value.length ? goodsOptions.value.map((item) => item.value) : fallbackGoodsTypes))
-const goodsForm = ref({
-  type: '食品饮品',
-  insuredAmount: '',
-  weight: 2,
+const goodsForm = reactive({
+  itemIndex: fallbackItemOptions[0].index,
+  fragileType: '2',
+  weight: '1',
+  number: 1,
+  isBaoMoney: '2',
+  baoMoney: '',
   length: '',
   width: '',
   height: '',
-  count: 1,
 })
 
-const couriers = [
-  { name: '圆通', logo: 'YTO', color: '#5d2d82', badge: '推荐', price: 5, tag: '极力推荐，取件较好，上门及时' },
-  { name: '韵达', logo: 'Y', color: '#ffcf23', textColor: '#111827', price: 5, tag: '官方渠道，取件较好，效率高' },
-  { name: '中通快递', logo: 'ZTO', color: '#2fa7ff', price: 5, tag: '全国始发，价格优惠' },
-  { name: '申通快递', logo: 'sto', color: '#737373', price: 5, tag: '平台特惠补贴' },
-  { name: '菜鸟快递', logo: '菜', color: '#0398ff', price: 8, tag: '菜鸟直营，2小时内上门' },
-  { name: '极兔快递', logo: 'J&T', color: '#ef2b2d', price: 5, tag: '适合9公斤内，超9公斤差价偏高' },
-  { name: '京东快递', logo: 'JD', color: '#eb3b32', price: 7, tag: '京东直营，当天揽收' },
-]
-
-const courierRows = computed(() => {
-  if (!deliveryOptions.value.length) return couriers
-  return deliveryOptions.value.map((item, index) => ({
-    name: item.value,
-    logo: item.value.slice(0, 3).toUpperCase(),
-    color: ['#5d2d82', '#ffcf23', '#2fa7ff', '#737373', '#0398ff', '#ef2b2d'][index % 6],
-    textColor: index % 6 === 1 ? '#111827' : '#ffffff',
-    price: freightInfo.value?.yg_price || 5,
-    tag: index === 0 ? '平台推荐，价格以实时试算为准' : '可选快递类型',
-    apiIndex: item.index,
-  }))
+const businessForm = reactive({
+  company: '',
+  tradeNo: '',
+  settleType: 'cash',
 })
 
-const pageTitle = computed(() => (pageMode.value === 'goods' ? '物品信息' : '寄快递'))
+const pageTitle = computed(() => (pageMode.value === 'goods' ? '物品信息' : '快递下单'))
 const currentTabLabel = computed(() => tabs.find((item) => item.key === activeTab.value)?.label || '')
-const goodsSummary = computed(() => `${goodsForm.value.type}，${goodsForm.value.weight}kg，${goodsForm.value.count}件`)
-const displayPrice = computed(() => {
-  if (activeTab.value === 'batch') return 0
-  if (!freightInfo.value) return 3980
-  return Number(freightInfo.value.yg_price || 0)
-})
-const actualPriceText = computed(() => {
-  if (!freightInfo.value) return ''
-  const amount = Number(freightInfo.value.yg_price || 0) - Number(freightInfo.value.yh_price || 0)
-  return `预计实付 ¥${Math.max(amount, 0)}`
+const selectedDeliveryLabel = computed(() => deliveryOptions.value.find((item) => item.index === selectedDeliveryIndex.value)?.value || '请选择')
+const deliveryLabels = computed(() => deliveryOptions.value.map((item) => item.value))
+const deliveryIndex = computed(() => Math.max(deliveryOptions.value.findIndex((item) => item.index === selectedDeliveryIndex.value), 0))
+const selectedItem = computed(() => itemOptions.value.find((item) => item.index === goodsForm.itemIndex) || itemOptions.value[0])
+const goodsSummary = computed(() => `${selectedItem.value?.value || '-'}，${normalizedWeight.value}kg，${goodsForm.number}件`)
+const normalizedWeight = computed(() => Math.max(1, Math.ceil(Number(goodsForm.weight || 1))))
+const subDate = computed(() => `${scheduleDate.value} ${scheduleTime.value}:00`)
+
+const missingApiMessage = computed(() => {
+  if (activeTab.value === 'batch') return '文档没有批量下单、Excel 导入或批量地址解析接口；本页只保留本地识别和草稿校验。'
+  if (activeTab.value === 'large') return '文档没有大件专属报价、车型、体积计费或大件下单接口；本页只保留本地大件信息流程。'
+  if (activeTab.value === 'business') return '文档没有商家账号、月结、电子面单或商家批量下单接口；本页只保留本地商家信息流程。'
+  return ''
 })
 
-const Stepper = defineComponent({
-  props: { value: { type: Number, required: true } },
-  emits: ['update:value'],
-  setup(props, { emit }) {
-    const change = (delta) => emit('update:value', Math.max(1, Number(props.value || 1) + delta))
-    return () => h('view', { class: 'stepper' }, [
-      h('text', { class: 'stepper-btn', onClick: () => change(-1) }, '-'),
-      h('text', { class: 'stepper-value' }, String(props.value)),
-      h('text', { class: 'stepper-btn', onClick: () => change(1) }, '+'),
-    ])
-  },
+const estimateStateText = computed(() => {
+  if (!senderAddress.value?.id || !receiverAddress.value?.id) return '选择地址后试算'
+  if (!goodsSaved.value) return '保存物品后试算'
+  return estimateInfo.value?.yg_price !== undefined ? '已按接口试算' : '暂无报价'
 })
 
-const AddressCard = defineComponent({
-  setup() {
-    const row = (type, label, address, desc) => h('view', { class: 'address-line' }, [
-      h('view', { class: 'step' }, [
-        h('view', { class: ['step-dot', type === 'sender' ? 'sender' : 'receiver'] }, label),
-        type === 'sender' ? h('view', { class: 'step-wire' }) : null,
-      ]),
-      h('view', { class: 'address-copy', onClick: () => openAddressBook(type) }, [
-        h('text', { class: 'address-title' }, address.value ? `${address.value.name} ${address.value.phone}` : `${label === '寄' ? '寄件人' : '收件人'}信息`),
-        h('text', { class: 'address-desc' }, address.value ? `${address.value.region}${address.value.detail}` : desc),
-      ]),
-      h('text', { class: 'book-link', onClick: () => openAddressBook(type) }, '地址簿'),
-    ])
-    return () => h('view', { class: 'address-card' }, [
-      row('sender', '寄', senderAddress, '请输入真实姓名'),
-      h('view', { class: 'address-divider' }),
-      row('receiver', '收', receiverAddress, '支持地址粘贴、图片识别'),
-    ])
-  },
+const actualAmount = computed(() => {
+  const freight = Number(estimateInfo.value?.yg_price || 0)
+  const discount = Number(estimateInfo.value?.yh_price || 0)
+  return Math.max(freight - discount, 0)
 })
 
-const CourierList = defineComponent({
-  props: {
-    items: { type: Array, required: true },
-    selected: { type: String, required: true },
-    compact: { type: Boolean, default: false },
-  },
-  emits: ['update:selected'],
-  setup(props, { emit }) {
-    return () => h('view', { class: props.compact ? 'courier-card compact' : 'courier-card' }, props.items.map((item) => (
-      h('view', { class: 'courier-row', onClick: () => emit('update:selected', item.name) }, [
-        h('view', { class: 'logo', style: { backgroundColor: item.color, color: item.textColor || '#ffffff' } }, item.logo),
-        h('view', { class: 'courier-main' }, [
-          h('view', { class: 'courier-name-row' }, [
-            h('text', { class: 'courier-name' }, item.name),
-            item.badge ? h('text', { class: 'badge' }, item.badge) : null,
-          ]),
-          h('view', { class: 'price-row' }, [
-            h('text', null, '预估价格：'),
-            h('text', { class: 'price' }, `${item.price}元起`),
-          ]),
-          h('text', { class: 'tag' }, item.tag),
-        ]),
-        h('view', { class: ['radio', props.selected === item.name ? 'checked' : ''] }, props.selected === item.name ? '✓' : ''),
-      ])
-    )))
-  },
-})
+const actualAmountText = computed(() => moneyText(actualAmount.value))
+const submitButtonText = computed(() => (activeTab.value === 'normal' ? (payMethod.value === '1' ? '立即下单并支付' : '立即下单') : '保存本地草稿'))
+const submitTip = computed(() => (activeTab.value === 'normal' ? '费用以接口试算和支付结果为准' : '当前类型缺少后端下单接口'))
 
-const SubmitBar = defineComponent({
-  props: { price: { type: Number, required: true } },
-  setup(props) {
-    return () => h('view', { class: 'submit-bar' }, [
-      h('view', { class: 'notice' }, '注:所有费用都在平台完成，无需向快递员额外付费'),
-      h('view', { class: 'submit-row' }, [
-        h('view', { class: 'fee' }, [
-          h('view', { class: 'fee-line' }, [h('text', null, '运费：'), h('text', { class: 'fee-price' }, `￥${props.price}`)]),
-          actualPriceText.value ? h('view', { class: 'actual-price' }, actualPriceText.value) : null,
-          h('view', { class: 'agree' }, [h('view', { class: 'agree-dot' }, '✓'), h('text', null, '我已阅读并同意'), h('text', { class: 'protocol' }, '《寄件服务协议》')]),
-        ]),
-        h('view', { class: 'submit-button', onClick: submitOrder }, '立即下单'),
-      ]),
-    ])
-  },
-})
+const moneyText = (value) => Number(value || 0).toFixed(2)
 
-watch(showRemarkPopup, (show) => {
-  if (show) remarkDraft.value = remark.value
-})
-
-watch([senderAddress, receiverAddress, weight, activeTab, selectedCourier], () => {
-  estimateFreight()
-})
-
-const openAddressBook = (type) => {
-  uni.navigateTo({
-    url: `/pages/address/index?type=${type}`,
-    events: {
-      selectAddress(payload) {
-        if (payload.type === 'receiver') receiverAddress.value = payload.address
-        else senderAddress.value = payload.address
-      },
-    },
-  })
+const toast = (title) => {
+  uni.showToast({ title, icon: 'none' })
 }
 
-const goCoupon = () => {
-  uni.navigateTo({
-    url: '/pages/coupon/index',
-    events: {
-      selectCoupon(coupon) {
-        selectedCoupon.value = coupon
-      },
-    },
-  })
+const pad = (num) => String(num).padStart(2, '0')
+
+const initSchedule = () => {
+  const date = new Date()
+  scheduleDate.value = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+
+const normalizeConfig = (data, fallback) => {
+  const rows = Array.isArray(data) ? data : []
+  const normalized = rows
+    .map((item) => ({
+      index: Number(item.index),
+      value: String(item.value || '').trim(),
+    }))
+    .filter((item) => item.index && item.value)
+  return normalized.length ? normalized : fallback
+}
+
+const configToText = (data) => {
+  if (typeof data === 'string') return data
+  if (Array.isArray(data)) return data.map((item) => item.value || item.content || item.desc || '').filter(Boolean).join('；')
+  if (data && typeof data === 'object') return data.value || data.content || data.desc || JSON.stringify(data)
+  return ''
+}
+
+const loadConfig = async () => {
+  try {
+    const [deliveryType, itemInfo, forbiddenItems, billingRules] = await Promise.all([
+      userApi.getConfig('deliveryType'),
+      userApi.getConfig('itemInfo'),
+      userApi.getConfig('forbiddenItems'),
+      userApi.getConfig('billingRules'),
+    ])
+    deliveryOptions.value = normalizeConfig(deliveryType, fallbackDeliveryOptions)
+    itemOptions.value = normalizeConfig(itemInfo, fallbackItemOptions)
+    selectedDeliveryIndex.value = deliveryOptions.value[0]?.index || 1
+    goodsForm.itemIndex = itemOptions.value[0]?.index || 1
+    forbiddenText.value = configToText(forbiddenItems)
+    billingText.value = configToText(billingRules)
+  } catch (error) {
+    console.warn('load config failed', error)
+    toast('配置加载失败，已使用本地默认值')
+  }
+}
+
+const normalizeAddress = (item = {}) => ({
+  id: item.id,
+  name: item.name || '',
+  phone: item.tel || item.phone || '',
+  province: item.province || '',
+  city: item.city || '',
+  district: item.district || '',
+  address: item.address || item.detail || '',
+})
+
+const loadAddressList = async () => {
+  addressLoading.value = true
+  try {
+    const data = await addressApi.list({ page: 1, pageSize: 50, search: '' })
+    const rows = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : []
+    addressList.value = rows.map(normalizeAddress)
+  } catch (error) {
+    console.warn('load address list failed', error)
+    addressList.value = []
+    toast(error.message || '地址加载失败')
+  } finally {
+    addressLoading.value = false
+  }
+}
+
+const openAddressPicker = async (role) => {
+  pickingRole.value = role
+  addressPickerVisible.value = true
+  if (!addressList.value.length) await loadAddressList()
+}
+
+const selectAddress = async (item) => {
+  try {
+    const data = await addressApi.detail(item.id)
+    const address = normalizeAddress(data || item)
+    if (pickingRole.value === 'sender') senderAddress.value = address
+    else receiverAddress.value = address
+    addressPickerVisible.value = false
+  } catch (error) {
+    toast(error.message || '地址详情加载失败')
+  }
+}
+
+const addressTitle = (address, emptyText) => {
+  if (!address) return emptyText
+  return `${address.name || '未命名'} ${address.phone || ''}`.trim()
+}
+
+const addressDetail = (address, emptyText) => {
+  if (!address) return emptyText
+  return [address.province, address.city, address.district, address.address].filter(Boolean).join(' ') || emptyText
+}
+
+const changeTab = (key) => {
+  activeTab.value = key
+  if (key === 'large' && Number(goodsForm.weight || 0) < 30) goodsForm.weight = '30'
+}
+
+const handleDeliveryChange = (event) => {
+  const index = Number(event.detail.value || 0)
+  selectedDeliveryIndex.value = deliveryOptions.value[index]?.index || selectedDeliveryIndex.value
+}
+
+const changeNumber = (delta) => {
+  goodsForm.number = Math.max(1, Number(goodsForm.number || 1) + delta)
 }
 
 const saveGoods = () => {
+  if (!goodsForm.itemIndex) {
+    toast('请选择物品类型')
+    return
+  }
+  if (!Number.isFinite(Number(goodsForm.weight)) || Number(goodsForm.weight) <= 0) {
+    toast('请输入有效重量')
+    return
+  }
+  if (goodsForm.isBaoMoney === '1' && (!Number.isFinite(Number(goodsForm.baoMoney)) || Number(goodsForm.baoMoney) <= 0)) {
+    toast('请输入保价金额')
+    return
+  }
+  goodsForm.weight = String(normalizedWeight.value)
   goodsSaved.value = true
-  weight.value = goodsForm.value.weight
   pageMode.value = 'main'
   estimateFreight()
 }
 
-const confirmBatchCourier = () => {
-  selectedBatchCourier.value = courierRows.value.find((item) => item.name === pendingBatchCourier.value)
-  showCourierPopup.value = false
-}
-
-const getDeliveryIndex = () => {
-  const selected = courierRows.value.find((item) => item.name === selectedCourier.value) || courierRows.value[0]
-  return selected?.apiIndex || deliveryOptions.value[0]?.index || 1
-}
-
-const getGoodsIndex = () => {
-  const selected = goodsOptions.value.find((item) => item.value === goodsForm.value.type)
-  return selected?.index || Math.max(fallbackGoodsTypes.indexOf(goodsForm.value.type) + 1, 1)
-}
-
-const getSubDate = () => {
-  const date = new Date()
-  const pad = (num) => String(num).padStart(2, '0')
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} 16:59:59`
-}
+const canEstimate = () => activeTab.value === 'normal' && senderAddress.value?.id && receiverAddress.value?.id && goodsSaved.value
 
 const estimateFreight = async () => {
-  if (activeTab.value !== 'normal' || !senderAddress.value?.id || !receiverAddress.value?.id) return
+  if (!canEstimate()) return
   estimating.value = true
   try {
-    freightInfo.value = await orderApi.estimate({
+    estimateInfo.value = await orderApi.estimate({
       sender_id: senderAddress.value.id,
       recipient_id: receiverAddress.value.id,
-      businessType: getDeliveryIndex(),
-      weight: weight.value,
-      consignedTime: getSubDate(),
+      businessType: selectedDeliveryIndex.value,
+      weight: normalizedWeight.value,
+      consignedTime: subDate.value,
     })
   } catch (error) {
-    console.warn('estimate freight failed', error)
+    console.warn('estimate failed', error)
+    estimateInfo.value = {}
+    toast(error.message || '运费试算失败')
   } finally {
     estimating.value = false
   }
 }
 
-const loadConfig = async () => {
-  try {
-    const [delivery, goods] = await Promise.all([
-      userApi.getConfig('deliveryType'),
-      userApi.getConfig('itemInfo'),
-    ])
-    deliveryOptions.value = Array.isArray(delivery) ? delivery : []
-    goodsOptions.value = Array.isArray(goods) ? goods : []
-    if (deliveryOptions.value[0]) {
-      selectedCourier.value = deliveryOptions.value[0].value
-      pendingBatchCourier.value = deliveryOptions.value[0].value
-    }
-    if (goodsOptions.value[0]) goodsForm.value.type = goodsOptions.value[0].value
-  } catch (error) {
-    console.warn('load order config failed', error)
+const validateCommon = () => {
+  if (!senderAddress.value?.id) {
+    toast('请选择寄件地址')
+    return false
   }
+  if (!receiverAddress.value?.id && activeTab.value !== 'batch') {
+    toast('请选择收件地址')
+    return false
+  }
+  if (!goodsSaved.value) {
+    toast('请先保存物品信息')
+    return false
+  }
+  return true
 }
 
-const importExcel = () => {
-  batchReceivers.value = [
-    { name: '王五', phone: '13800001111' },
-    { name: '赵六', phone: '13900002222' },
-  ]
-  showExcelPopup.value = false
-}
+const createPayload = () => ({
+  sender_id: String(senderAddress.value.id),
+  recipient_id: String(receiverAddress.value.id),
+  delivery_type: String(selectedDeliveryIndex.value),
+  item_type: String(goodsForm.itemIndex),
+  fragile_type: goodsForm.fragileType,
+  weight: String(normalizedWeight.value),
+  number: String(goodsForm.number || 1),
+  is_bao_money: goodsForm.isBaoMoney,
+  bao_money: goodsForm.isBaoMoney === '1' ? String(goodsForm.baoMoney || 0) : '0',
+  pay_method: payMethod.value,
+  sub_date: subDate.value,
+  note: note.value || '',
+})
 
-const confirmRecognize = () => {
-  const lines = recognizeText.value.split(/\n+/).map((line) => line.trim()).filter(Boolean)
-  batchReceivers.value = lines.map((line, index) => ({ name: line.split(/\s+/)[0] || `收件人${index + 1}`, phone: line.match(/1[3-9]\d{9}/)?.[0] || '' }))
-  showRecognizePopup.value = false
-}
-
-const saveRemark = () => {
-  remark.value = remarkDraft.value
-  showRemarkPopup.value = false
-}
-
-const submitOrder = async () => {
-  if (activeTab.value !== 'normal') {
-    uni.showToast({ title: '批量寄件接口未提供，暂未接入', icon: 'none' })
+const submitCurrentFlow = () => {
+  if (submitting.value) return
+  if (activeTab.value === 'normal') {
+    submitNormalOrder()
     return
   }
-  if (!senderAddress.value?.id || !receiverAddress.value?.id) {
-    uni.showToast({ title: '请选择寄件和收件地址', icon: 'none' })
+  submitLocalDraft()
+}
+
+const submitNormalOrder = async () => {
+  if (!validateCommon()) return
+  submitting.value = true
+  try {
+    const data = await orderApi.create(createPayload())
+    const orderId = data?.order_id || data?.id
+    if (!orderId) {
+      toast('订单已创建，但接口未返回订单ID')
+      return
+    }
+    if (payMethod.value === '2') {
+      toast('到付订单已提交')
+      return
+    }
+    const payData = await orderApi.pay(orderId)
+    const payParam = payData?.payParam
+    if (!payParam) {
+      toast('订单已创建，支付参数缺失')
+      return
+    }
+    uni.requestPayment({
+      timeStamp: payParam.timeStamp,
+      nonceStr: payParam.nonceStr,
+      package: payParam.package,
+      signType: payParam.signType,
+      paySign: payParam.paySign,
+      success: () => {
+        toast('支付成功')
+        uni.switchTab({ url: '/pages/express/index' })
+      },
+      fail: () => toast('支付已取消或失败'),
+    })
+  } catch (error) {
+    toast(error.message || '下单失败')
+  } finally {
+    submitting.value = false
+  }
+}
+
+const submitLocalDraft = () => {
+  if (!senderAddress.value?.id) {
+    toast('请选择寄件地址')
+    return
+  }
+  if (activeTab.value === 'batch' && !batchReceivers.value.length) {
+    toast('请先添加批量收件人')
+    return
+  }
+  if (activeTab.value !== 'batch' && !receiverAddress.value?.id) {
+    toast('请选择收件地址')
     return
   }
   if (!goodsSaved.value) {
-    uni.showToast({ title: '请填写物品信息', icon: 'none' })
+    toast('请先保存物品信息')
     return
   }
-  try {
-    const payload = {
-      sender_id: senderAddress.value.id,
-      recipient_id: receiverAddress.value.id,
-      delivery_type: getDeliveryIndex(),
-      item_type: getGoodsIndex(),
-      fragile_type: '2',
-      weight: String(weight.value),
-      number: String(goodsForm.value.count || 1),
-      is_bao_money: goodsForm.value.insuredAmount ? '1' : '2',
-      bao_money: String(goodsForm.value.insuredAmount || 0),
-      pay_method: '1',
-      sub_date: getSubDate(),
-      note: remark.value || '',
-    }
-    const data = await orderApi.create(payload)
-    uni.showToast({ title: '下单成功', icon: 'none' })
-    if (data?.order_id) {
-      try {
-        const payData = await orderApi.pay(data.order_id)
-        const payParam = payData?.payParam
-        if (payParam) {
-          uni.requestPayment({
-            timeStamp: payParam.timeStamp,
-            nonceStr: payParam.nonceStr,
-            package: payParam.package,
-            signType: payParam.signType,
-            paySign: payParam.paySign,
-            success: () => {
-              uni.switchTab({ url: '/pages/express/index' })
-            },
-          })
-        }
-      } catch (payError) {
-        console.warn('pay order failed', payError)
-      }
-    }
-  } catch (error) {
-    uni.showToast({ title: error.message || '下单失败', icon: 'none' })
+  if (activeTab.value === 'business' && !businessForm.company.trim()) {
+    toast('请填写店铺或公司名称')
+    return
   }
+  const message = activeTab.value === 'batch'
+    ? '批量下单接口未提供，已保留本地批量草稿'
+    : `${currentTabLabel.value}接口未提供，已保留本地草稿`
+  toast(message)
+}
+
+const parseBatchReceivers = () => {
+  const lines = batchText.value.split(/\n+/).map((line) => line.trim()).filter(Boolean)
+  if (!lines.length) {
+    toast('请先粘贴收件人文本')
+    return
+  }
+  batchReceivers.value = lines.map((line, index) => {
+    const phone = line.match(/1[3-9]\d{9}/)?.[0] || ''
+    const cleaned = line.replace(phone, '').trim()
+    const parts = cleaned.split(/\s+/).filter(Boolean)
+    return {
+      name: parts[0] || `收件人${index + 1}`,
+      phone,
+      address: parts.slice(1).join(' '),
+      raw: line,
+    }
+  })
+}
+
+const addReceiverFromCurrent = () => {
+  if (!receiverAddress.value) {
+    toast('请先选择当前收件人')
+    return
+  }
+  batchReceivers.value = batchReceivers.value.concat({
+    name: receiverAddress.value.name,
+    phone: receiverAddress.value.phone,
+    address: addressDetail(receiverAddress.value, ''),
+  })
 }
 
 const handleBack = () => {
@@ -560,30 +765,29 @@ const handleBack = () => {
   else uni.switchTab({ url: '/pages/index/index' })
 }
 
+watch([senderAddress, receiverAddress, selectedDeliveryIndex, scheduleDate, scheduleTime, () => goodsForm.weight], () => {
+  estimateFreight()
+})
+
 onMounted(() => {
+  initSchedule()
   const pages = getCurrentPages()
   const current = pages[pages.length - 1]
-  eventChannel = current?.getOpenerEventChannel?.()
   const tab = current?.options?.tab
-  if (tab === 'batch' || tab === 'large' || tab === 'business') activeTab.value = tab
+  if (tabs.some((item) => item.key === tab)) activeTab.value = tab
   loadConfig()
-  if (eventChannel) {
-    eventChannel.on?.('selectAddress', (payload) => {
-      if (payload.type === 'receiver') receiverAddress.value = payload.address
-      else senderAddress.value = payload.address
-    })
-  }
+  loadAddressList()
 })
 </script>
 
 <style>
 page {
-  background: #f3f4f6;
+  background: #f4f6fa;
 }
 
 .send-page {
   min-height: 100vh;
-  background: #f3f4f6;
+  background: #f4f6fa;
   color: #111827;
 }
 
@@ -620,652 +824,607 @@ page {
   box-sizing: border-box;
 }
 
-.tab-bar {
-  height: 72rpx;
-  padding: 0 30rpx;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.tab-scroll {
+  width: 100%;
+  height: 84rpx;
+  white-space: nowrap;
   background: #ffffff;
-  border-bottom: 1rpx solid #e5e7eb;
-  box-sizing: border-box;
+  border-top: 1rpx solid #f1f3f7;
 }
 
 .tab-item {
-  height: 72rpx;
-  display: flex;
-  align-items: center;
+  height: 84rpx;
+  padding: 0 30rpx;
   position: relative;
-  color: #9a9a9a;
-  font-size: 28rpx;
-  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  color: #7b8494;
+  font-size: 29rpx;
+  font-weight: 600;
+  box-sizing: border-box;
 }
 
 .tab-item.active {
-  color: #438bff;
-  font-weight: 600;
+  color: #2f7df6;
 }
 
 .tab-item.active::after {
   content: '';
   position: absolute;
-  left: 12rpx;
-  right: 12rpx;
+  left: 34rpx;
+  right: 34rpx;
   bottom: 0;
-  height: 5rpx;
-  border-radius: 5rpx;
-  background: #438bff;
+  height: 6rpx;
+  border-radius: 6rpx;
+  background: #2f7df6;
 }
 
 .content {
-  height: calc(100vh - 160rpx - var(--status-bar-height));
+  height: calc(100vh - 172rpx - var(--status-bar-height));
+  padding: 22rpx 24rpx 178rpx;
   box-sizing: border-box;
 }
 
+.api-missing-card,
 .address-card,
-.info-card,
-.courier-card,
-.batch-address-card,
-.batch-info-card,
-.batch-courier-card,
-.empty-panel {
-  margin: 32rpx 30rpx 0;
+.form-card,
+.estimate-card,
+.rules-card {
+  margin-bottom: 22rpx;
   border-radius: 14rpx;
   background: #ffffff;
-  overflow: hidden;
   box-sizing: border-box;
+}
+
+.api-missing-card {
+  padding: 22rpx 24rpx;
+  border: 1rpx solid #fed7aa;
+  background: #fff7ed;
+}
+
+.missing-title {
+  color: #9a3412;
+  font-size: 28rpx;
+  font-weight: 700;
+}
+
+.missing-desc {
+  display: block;
+  margin-top: 10rpx;
+  color: #c2410c;
+  font-size: 24rpx;
+  line-height: 34rpx;
 }
 
 .address-card {
-  padding: 36rpx 24rpx;
+  padding: 32rpx 24rpx;
 }
 
 .address-line {
-  min-height: 86rpx;
+  min-height: 88rpx;
   display: flex;
   align-items: center;
 }
 
 .step {
-  width: 64rpx;
-  min-height: 86rpx;
+  width: 68rpx;
+  min-height: 88rpx;
   position: relative;
   display: flex;
   justify-content: center;
 }
 
 .step-dot {
-  width: 72rpx;
-  height: 72rpx;
+  width: 66rpx;
+  height: 66rpx;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
   color: #ffffff;
-  font-size: 30rpx;
-  font-weight: 700;
+  font-size: 29rpx;
+  font-weight: 800;
 }
 
 .sender {
-  background: #11c9a6;
+  background: #12b981;
 }
 
 .receiver {
-  background: #4b8dff;
+  background: #438bff;
 }
 
 .step-wire {
   position: absolute;
-  left: 31rpx;
-  top: 76rpx;
+  left: 33rpx;
+  top: 72rpx;
   height: 70rpx;
-  border-left: 2rpx dashed #c8ccd4;
+  border-left: 2rpx dashed #c8ced8;
 }
 
 .address-copy {
   flex: 1;
   min-width: 0;
-  padding-left: 26rpx;
+  padding-left: 22rpx;
 }
 
 .address-title {
   display: block;
-  font-size: 32rpx;
+  overflow: hidden;
+  color: #111827;
+  font-size: 31rpx;
   font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .address-desc {
   display: block;
-  margin-top: 10rpx;
+  margin-top: 9rpx;
   overflow: hidden;
-  color: #9a9a9a;
-  font-size: 26rpx;
+  color: #8b95a1;
+  font-size: 24rpx;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .book-link {
-  width: 116rpx;
-  border-left: 1rpx solid #e5e7eb;
-  color: #111827;
-  font-size: 31rpx;
+  width: 112rpx;
+  color: #2f7df6;
+  font-size: 26rpx;
   text-align: right;
 }
 
 .address-divider {
   height: 1rpx;
-  margin: 28rpx 0 28rpx 88rpx;
+  margin: 26rpx 0 26rpx 92rpx;
   background: #edf0f5;
 }
 
-.cell {
-  height: 108rpx;
+.form-card,
+.estimate-card,
+.rules-card {
   padding: 0 24rpx;
+}
+
+.cell,
+.field-row {
+  min-height: 98rpx;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   border-bottom: 1rpx solid #edf0f5;
 }
 
-.cell.last {
+.cell:last-child,
+.field-row:last-child {
   border-bottom: none;
 }
 
-.cell-left,
-.cell-right {
+.head-cell {
+  justify-content: space-between;
+}
+
+.cell-title-row {
   display: flex;
   align-items: center;
 }
 
-.cell-title {
-  font-size: 31rpx;
-  font-weight: 500;
+.cell-title,
+.field-label {
+  color: #111827;
+  font-size: 28rpx;
+  font-weight: 700;
+}
+
+.cell-subtitle {
+  display: block;
+  margin-top: 8rpx;
+  color: #8b95a1;
+  font-size: 23rpx;
 }
 
 .required {
-  height: 36rpx;
-  margin-left: 14rpx;
-  padding: 0 12rpx;
-  border: 1rpx solid #ff5b34;
-  border-radius: 20rpx;
-  color: #ff5b34;
-  font-size: 23rpx;
-  line-height: 36rpx;
-}
-
-.goods-summary,
-.cell-right {
-  color: #9a9a9a;
-  font-size: 28rpx;
-}
-
-.goods-summary {
+  height: 34rpx;
   margin-left: 12rpx;
+  padding: 0 12rpx;
+  border: 1rpx solid #ef4444;
+  border-radius: 18rpx;
+  color: #ef4444;
+  font-size: 21rpx;
+  line-height: 34rpx;
 }
 
-.stepper {
-  height: 44rpx;
-  display: flex;
+.picker-value {
+  min-width: 180rpx;
+  color: #5b6472;
+  font-size: 26rpx;
+  text-align: right;
+}
+
+.cell {
+  justify-content: space-between;
+}
+
+.note-cell {
   align-items: center;
-  background: #f5f7fb;
 }
 
-.stepper-btn,
-.stepper-value {
-  height: 44rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #111827;
-  font-size: 28rpx;
-}
-
-.stepper-btn {
-  width: 44rpx;
-  background: #f1f3f7;
-  font-weight: 700;
-}
-
-.stepper-value {
-  width: 88rpx;
-}
-
-.courier-card {
-  padding: 0 24rpx;
-}
-
-.courier-card.compact {
-  margin: 16rpx 0 0;
-  max-height: 800rpx;
-  overflow: auto;
-}
-
-.courier-row {
-  min-height: 176rpx;
-  padding: 30rpx 0 24rpx;
-  display: flex;
-  align-items: flex-start;
-  border-bottom: 1rpx solid #edf0f5;
-  box-sizing: border-box;
-}
-
-.courier-row:last-child {
-  border-bottom: none;
-}
-
-.logo {
-  width: 72rpx;
-  height: 72rpx;
-  margin-right: 18rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  font-size: 20rpx;
-  font-weight: 800;
-}
-
-.courier-main {
+.note-input,
+.field-input {
   flex: 1;
   min-width: 0;
+  height: 68rpx;
+  color: #4b5563;
+  font-size: 26rpx;
+  text-align: right;
 }
 
-.courier-name-row {
-  display: flex;
-  align-items: center;
+.field-label {
+  width: 154rpx;
+  flex-shrink: 0;
 }
 
-.courier-name {
-  font-size: 31rpx;
-  font-weight: 700;
-}
-
-.badge {
-  height: 36rpx;
-  margin-left: 12rpx;
-  padding: 0 14rpx;
-  border-radius: 6rpx;
-  background: #5c91ff;
-  color: #ffffff;
-  font-size: 22rpx;
-  line-height: 36rpx;
-}
-
-.price-row {
-  margin-top: 10rpx;
-  color: #9a9a9a;
-  font-size: 28rpx;
-}
-
-.price {
-  color: #ff4d1f;
-}
-
-.tag {
-  display: inline-flex;
-  height: 38rpx;
-  margin-top: 12rpx;
-  padding: 0 12rpx;
-  border-radius: 7rpx;
-  background: #ff5a00;
-  color: #ffffff;
-  font-size: 23rpx;
-  line-height: 38rpx;
-  max-width: 430rpx;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.radio {
-  width: 40rpx;
-  height: 40rpx;
-  margin-top: 20rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 2rpx solid #a7a7a7;
-  border-radius: 50%;
-  color: #ffffff;
-  font-size: 24rpx;
-  box-sizing: border-box;
-}
-
-.radio.checked {
-  border-color: #4b8dff;
-  background: #4b8dff;
-}
-
-.batch-address-card {
-  padding: 32rpx 24rpx;
-}
-
-.batch-address-row {
-  display: flex;
-  align-items: center;
-}
-
-.batch-main-text {
-  flex: 1;
-  padding-left: 18rpx;
-  font-size: 32rpx;
-}
-
-.batch-info-card {
-  padding: 28rpx 24rpx 30rpx;
-}
-
-.batch-section-title {
-  display: block;
-  font-size: 31rpx;
-}
-
-.batch-tool-row {
-  margin-top: 30rpx;
-  padding-top: 24rpx;
-  display: flex;
-  justify-content: space-between;
-  border-top: 1rpx solid #edf0f5;
-}
-
-.batch-tool {
-  display: flex;
-  align-items: center;
-  color: #111827;
-  font-size: 29rpx;
-}
-
-.batch-tool text {
+.field-unit {
   margin-left: 8rpx;
-}
-
-.receiver-count {
-  margin-top: 24rpx;
-  color: #438bff;
-  font-size: 25rpx;
-}
-
-.batch-courier-card {
-  height: 108rpx;
-  padding: 0 24rpx;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.empty-panel {
-  height: 300rpx;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: #6b7280;
-  font-size: 30rpx;
-}
-
-.empty-desc {
-  margin-top: 16rpx;
-  color: #a1a1aa;
+  color: #8b95a1;
   font-size: 24rpx;
 }
 
-.bottom-space {
-  height: 188rpx;
-}
-
-.submit-bar {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding: 0 30rpx calc(10rpx + env(safe-area-inset-bottom));
-  background: #ffffff;
-  z-index: 9;
-  box-sizing: border-box;
-}
-
-.notice {
-  height: 48rpx;
-  margin-top: 8rpx;
-  border-radius: 7rpx;
-  background: #ffe9e1;
-  color: #ff4d1f;
-  font-size: 27rpx;
-  line-height: 48rpx;
+.size-input {
+  width: 86rpx;
+  height: 54rpx;
+  margin-left: 10rpx;
+  border-radius: 8rpx;
+  background: #f5f7fb;
+  color: #4b5563;
+  font-size: 23rpx;
   text-align: center;
 }
 
-.submit-row {
-  height: 100rpx;
+.segmented {
   display: flex;
-  align-items: center;
+  padding: 4rpx;
+  border-radius: 10rpx;
+  background: #eef2f7;
 }
 
-.fee {
-  flex: 1;
+.pay-segmented {
+  margin-left: auto;
 }
 
-.fee-line {
-  display: flex;
-  align-items: baseline;
-  font-size: 31rpx;
-}
-
-.fee-price {
-  color: #ff6a00;
-  font-size: 36rpx;
-}
-
-.agree {
-  margin-top: 4rpx;
-  display: flex;
-  align-items: center;
-  color: #9a9a9a;
-  font-size: 23rpx;
-}
-
-.agree-dot {
-  width: 30rpx;
-  height: 30rpx;
-  margin-right: 6rpx;
+.segmented-item {
+  min-width: 92rpx;
+  height: 52rpx;
+  padding: 0 18rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
+  border-radius: 8rpx;
+  color: #697386;
+  font-size: 24rpx;
+  box-sizing: border-box;
+}
+
+.segmented-item.active {
+  background: #438bff;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.section-head {
+  min-height: 82rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #111827;
+  font-size: 29rpx;
+  font-weight: 700;
+}
+
+.section-count,
+.section-hint {
+  color: #8b95a1;
+  font-size: 23rpx;
+  font-weight: 400;
+}
+
+.batch-textarea {
+  width: 100%;
+  height: 170rpx;
+  padding: 18rpx;
+  border-radius: 10rpx;
+  background: #f5f7fb;
+  color: #4b5563;
+  font-size: 24rpx;
+  line-height: 34rpx;
+  box-sizing: border-box;
+}
+
+.placeholder {
+  color: #a7afbc;
+}
+
+.inline-actions {
+  margin: 20rpx 0 24rpx;
+  display: flex;
+  justify-content: flex-end;
+  gap: 14rpx;
+}
+
+.outline-action,
+.primary-action {
+  height: 58rpx;
+  padding: 0 22rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 30rpx;
+  font-size: 24rpx;
+}
+
+.outline-action {
+  border: 1rpx solid #cfd6e0;
+  color: #5b6472;
+}
+
+.primary-action {
   background: #438bff;
   color: #ffffff;
 }
 
-.protocol {
-  color: #438bff;
+.receiver-list {
+  padding-bottom: 16rpx;
+}
+
+.receiver-item {
+  margin-bottom: 12rpx;
+  padding: 18rpx;
+  border-radius: 10rpx;
+  background: #f8fafc;
+}
+
+.receiver-name {
+  color: #111827;
+  font-size: 26rpx;
+  font-weight: 700;
+}
+
+.receiver-phone {
+  margin-left: 16rpx;
+  color: #6b7280;
+  font-size: 24rpx;
+}
+
+.receiver-address {
+  display: block;
+  margin-top: 8rpx;
+  color: #8b95a1;
+  font-size: 23rpx;
+  line-height: 32rpx;
+}
+
+.hint-box {
+  margin-bottom: 24rpx;
+  padding: 18rpx;
+  border-radius: 10rpx;
+  background: #f8fafc;
+  color: #6b7280;
+  font-size: 24rpx;
+  line-height: 36rpx;
+}
+
+.money-row,
+.actual-row {
+  min-height: 66rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #5b6472;
+  font-size: 25rpx;
+}
+
+.money {
+  color: #ef4444;
+  font-weight: 700;
+}
+
+.actual-row {
+  min-height: 84rpx;
+  border-top: 1rpx solid #edf0f5;
+  color: #111827;
+  font-size: 30rpx;
+  font-weight: 800;
+}
+
+.actual-row text:last-child {
+  color: #ef4444;
+}
+
+.rule-block {
+  padding: 22rpx 0;
+  border-bottom: 1rpx solid #edf0f5;
+}
+
+.rule-block:last-child {
+  border-bottom: none;
+}
+
+.rule-title,
+.rule-content {
+  display: block;
+}
+
+.rule-title {
+  color: #111827;
+  font-size: 27rpx;
+  font-weight: 700;
+}
+
+.rule-content {
+  margin-top: 10rpx;
+  color: #6b7280;
+  font-size: 24rpx;
+  line-height: 36rpx;
+}
+
+.bottom-space {
+  height: 80rpx;
+}
+
+.submit-bar,
+.save-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 18rpx 28rpx calc(24rpx + env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  background: #ffffff;
+  box-shadow: 0 -8rpx 26rpx rgba(15, 23, 42, 0.06);
+  z-index: 9;
+  box-sizing: border-box;
+}
+
+.submit-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.submit-price {
+  display: flex;
+  align-items: baseline;
+  color: #111827;
+  font-size: 25rpx;
+}
+
+.submit-money {
+  margin-left: 8rpx;
+  color: #ef4444;
+  font-size: 36rpx;
+  font-weight: 800;
+}
+
+.submit-tip {
+  display: block;
+  margin-top: 4rpx;
+  color: #8b95a1;
+  font-size: 22rpx;
 }
 
 .submit-button {
-  width: 220rpx;
-  height: 80rpx;
+  width: 236rpx;
+  height: 78rpx;
+  margin-left: 20rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 14rpx;
-  background: #4b8dff;
+  border-radius: 12rpx;
+  background: #438bff;
   color: #ffffff;
-  font-size: 34rpx;
-  font-weight: 700;
+  font-size: 28rpx;
+  font-weight: 800;
+}
+
+.submit-button.disabled {
+  background: #a7b9dd;
 }
 
 .goods-scroll {
   height: calc(100vh - 88rpx - var(--status-bar-height));
-  padding: 26rpx 22rpx 150rpx;
+  padding: 24rpx 24rpx 160rpx;
   box-sizing: border-box;
 }
 
 .goods-label {
   display: block;
   margin-bottom: 18rpx;
+  color: #111827;
   font-size: 28rpx;
   font-weight: 700;
 }
 
-.goods-type-grid {
+.goods-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 14rpx;
 }
 
 .goods-type {
-  height: 52rpx;
+  height: 62rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1rpx solid #e5e7eb;
-  border-radius: 8rpx;
+  border: 1rpx solid #dce2ea;
+  border-radius: 10rpx;
   background: #ffffff;
-  color: #9ca3af;
-  font-size: 23rpx;
+  color: #5b6472;
+  font-size: 24rpx;
   box-sizing: border-box;
 }
 
 .goods-type.active {
-  border-color: #4d8df7;
-  background: #4d8df7;
+  border-color: #438bff;
+  background: #438bff;
   color: #ffffff;
-}
-
-.goods-card,
-.goods-note {
-  margin-top: 22rpx;
-  border-radius: 10rpx;
-  background: #ffffff;
-}
-
-.goods-card {
-  padding: 0 22rpx;
-}
-
-.goods-row {
-  min-height: 88rpx;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 1rpx solid #edf0f5;
-}
-
-.goods-row:last-child {
-  border-bottom: none;
-}
-
-.goods-price-row {
-  min-height: 108rpx;
-}
-
-.goods-row-title {
-  display: flex;
-  align-items: center;
-  font-size: 27rpx;
   font-weight: 700;
 }
 
-.help-icon {
-  width: 26rpx;
-  height: 26rpx;
-  margin-left: 8rpx;
+.goods-form-card {
+  margin-top: 22rpx;
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  border-radius: 8rpx;
+  background: #eef2f7;
+}
+
+.stepper-btn,
+.stepper-value {
+  height: 52rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1rpx solid #cfd6e0;
-  border-radius: 50%;
-  color: #9ca3af;
-  font-size: 18rpx;
+  color: #111827;
+  font-size: 26rpx;
 }
 
-.goods-tip {
-  display: block;
-  margin-top: 8rpx;
-  color: #ff5a36;
-  font-size: 20rpx;
+.stepper-btn {
+  width: 54rpx;
+  font-weight: 800;
 }
 
-.goods-input {
-  width: 180rpx;
-  height: 52rpx;
-  padding: 0 12rpx;
-  background: #f5f7fb;
-  color: #4b5563;
-  font-size: 24rpx;
-  text-align: right;
-  box-sizing: border-box;
-}
-
-.volume-inputs {
-  display: flex;
-  align-items: center;
-}
-
-.volume-inputs input {
-  width: 98rpx;
-  height: 46rpx;
-  margin-left: 8rpx;
-  background: #f5f7fb;
-  color: #4b5563;
-  font-size: 20rpx;
-  text-align: center;
+.stepper-value {
+  width: 76rpx;
 }
 
 .goods-note {
-  padding: 26rpx 22rpx;
+  margin-top: 22rpx;
+  padding: 22rpx;
+  border-radius: 12rpx;
+  background: #fff7ed;
 }
 
 .goods-note text {
   display: block;
-  color: #6b7280;
+  color: #9a3412;
   font-size: 23rpx;
-  line-height: 36rpx;
+  line-height: 34rpx;
 }
 
-.goods-note .goods-note-title {
-  margin-bottom: 8rpx;
-  color: #4b5563;
-  font-weight: 700;
-}
-
-.blue-text {
-  color: #498dff !important;
-}
-
-.save-bar {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding: 18rpx 38rpx calc(30rpx + env(safe-area-inset-bottom));
-  background: #ffffff;
-  z-index: 9;
-  box-sizing: border-box;
-}
-
-.save-btn,
-.popup-confirm {
-  height: 78rpx;
+.save-btn {
+  flex: 1;
+  height: 82rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8rpx;
-  background: #4d8df7;
+  border-radius: 12rpx;
+  background: #438bff;
   color: #ffffff;
   font-size: 30rpx;
-  font-weight: 700;
-}
-
-.courier-popup,
-.sheet-popup {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding: 24rpx 42rpx calc(30rpx + env(safe-area-inset-bottom));
-  background: #ffffff;
-  border-radius: 24rpx 24rpx 0 0;
-  box-sizing: border-box;
+  font-weight: 800;
 }
 
 .popup-mask {
@@ -1278,80 +1437,81 @@ page {
   z-index: 99;
 }
 
-.popup-head {
-  height: 56rpx;
-  display: flex;
-  align-items: center;
-}
-
-.popup-side,
-.popup-close {
-  width: 56rpx;
-  height: 56rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.popup-title,
-.sheet-title {
-  flex: 1;
-  color: #111827;
-  font-size: 31rpx;
-  font-weight: 700;
-  text-align: center;
-}
-
-.sheet-title {
-  display: block;
-  text-align: left;
-}
-
-.sheet-desc {
-  display: block;
-  margin-top: 18rpx;
-  color: #6b7280;
-  font-size: 25rpx;
-  line-height: 36rpx;
-}
-
-.sheet-card {
-  height: 112rpx;
-  margin-top: 28rpx;
-  padding: 0 24rpx;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-radius: 12rpx;
-  background: #f5f7fb;
-  font-size: 27rpx;
-}
-
-.sheet-btn {
-  width: 150rpx;
-  height: 58rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 30rpx;
-  background: #4b8dff;
-  color: #ffffff;
-  font-size: 24rpx;
-}
-
-.recognize-area {
-  width: 100%;
-  height: 220rpx;
-  margin-top: 24rpx;
-  padding: 20rpx;
-  border-radius: 12rpx;
-  background: #f5f7fb;
-  color: #333333;
-  font-size: 26rpx;
+.address-popup {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: 78vh;
+  padding: 26rpx 28rpx calc(28rpx + env(safe-area-inset-bottom));
+  border-radius: 24rpx 24rpx 0 0;
+  background: #ffffff;
   box-sizing: border-box;
 }
 
-.sheet-popup .popup-confirm {
-  margin-top: 28rpx;
+.popup-head {
+  height: 62rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #111827;
+  font-size: 31rpx;
+  font-weight: 800;
+}
+
+.close-btn {
+  width: 60rpx;
+  height: 60rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+  font-size: 46rpx;
+  font-weight: 400;
+}
+
+.popup-empty {
+  min-height: 260rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  font-size: 27rpx;
+  text-align: center;
+}
+
+.popup-empty-desc {
+  margin-top: 12rpx;
+  color: #9ca3af;
+  font-size: 23rpx;
+  line-height: 34rpx;
+}
+
+.address-popup-list {
+  max-height: 62vh;
+  margin-top: 16rpx;
+}
+
+.address-option {
+  padding: 22rpx 0;
+  border-bottom: 1rpx solid #edf0f5;
+}
+
+.address-option-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #111827;
+  font-size: 28rpx;
+  font-weight: 700;
+}
+
+.address-option-detail {
+  display: block;
+  margin-top: 10rpx;
+  color: #6b7280;
+  font-size: 24rpx;
+  line-height: 34rpx;
 }
 </style>
