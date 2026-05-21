@@ -49,6 +49,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { userApi } from '@/services/api'
+import { debugLog } from '@/services/request'
 
 const notice = ref({})
 
@@ -74,13 +75,13 @@ const openNotice = () => {
 
 onMounted(async () => {
   try {
-    console.info('[startup:index]', {
+    debugLog('info', 'startup:index', {
       message: '开始请求首页公告',
       api: '/api/user/getNotice',
     })
     notice.value = await userApi.getNotice()
   } catch (error) {
-    console.warn('[startup:index]', {
+    debugLog('warn', 'startup:index', {
       message: '首页 getNotice 请求失败',
       errorMessage: error?.message,
       statusCode: error?.statusCode,

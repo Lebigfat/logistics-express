@@ -61,6 +61,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { orderApi } from '@/services/api'
 import { getRows, moneyText } from '@/utils/api-fields'
+import { paymentErrorMessage, requestWechatPayment } from '@/utils/payment'
 
 const tabs = [
   { label: '全部', value: '' },
@@ -162,14 +163,13 @@ const pay = async (item) => {
     const data = await orderApi.pay(item.id)
     const payParam = data?.payParam
     if (!payParam) return
-    uni.requestPayment({
-      timeStamp: payParam.timeStamp,
-      nonceStr: payParam.nonceStr,
-      package: payParam.package,
-      signType: payParam.signType,
-      paySign: payParam.paySign,
-      success: reload,
-    })
+    try {
+      await requestWechatPayment(payParam)
+      uni.showToast({ title: '支付成功', icon: 'none' })
+      reload()
+    } catch (paymentError) {
+      uni.showToast({ title: paymentErrorMessage(paymentError), icon: 'none' })
+    }
   } catch (error) {
     uni.showToast({ title: error.message || '支付失败', icon: 'none' })
   }
@@ -181,8 +181,13 @@ const cancel = (item) => {
     content: '确认取消该订单吗？',
     success: async (res) => {
       if (!res.confirm) return
-      await orderApi.cancel(item.id)
-      reload()
+      try {
+        await orderApi.cancel(item.id)
+        uni.showToast({ title: '订单已取消', icon: 'none' })
+        reload()
+      } catch (error) {
+        uni.showToast({ title: error.message || '取消失败', icon: 'none' })
+      }
     },
   })
 }

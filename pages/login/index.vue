@@ -29,7 +29,7 @@ import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppHead from '@/components/app-head/app-head.vue'
 import { authApi } from '@/services/api'
-import { API_BASE_URL } from '@/services/request'
+import { API_BASE_URL, debugLog } from '@/services/request'
 import { useUserStore } from '@/store'
 import { back, push, switchTab } from '@/utils/router'
 
@@ -44,7 +44,7 @@ const needBindMobile = computed(() => Boolean(userInfo.value?.openid && !userInf
 
 onLoad((options = {}) => {
   redirectUrl.value = options.redirect ? decodeURIComponent(options.redirect) : ''
-  console.info('[login:onLoad]', {
+  debugLog('info', 'login:onLoad', {
     redirectUrl: redirectUrl.value,
     apiBaseURL: API_BASE_URL,
   })
@@ -53,14 +53,14 @@ onLoad((options = {}) => {
 const runUniApi = (name, options = {}) =>
   new Promise((resolve, reject) => {
     const startTime = Date.now()
-    console.info(`[login:${name}:start]`, {
+    debugLog('info', `login:${name}:start`, {
       provider: options.provider,
       desc: options.desc,
     })
     uni[name]({
       ...options,
       success: (res) => {
-        console.info(`[login:${name}:success]`, {
+        debugLog('info', `login:${name}:success`, {
           duration: Date.now() - startTime,
           hasCode: Boolean(res?.code),
           hasIv: Boolean(res?.iv),
@@ -70,7 +70,7 @@ const runUniApi = (name, options = {}) =>
         resolve(res)
       },
       fail: (error) => {
-        console.error(`[login:${name}:fail]`, {
+        debugLog('error', `login:${name}:fail`, {
           duration: Date.now() - startTime,
           errMsg: error?.errMsg,
           message: error?.message,
@@ -99,7 +99,7 @@ const loginWithWechat = async () => {
   if (loggingIn.value) return
   loggingIn.value = true
   const startTime = Date.now()
-  console.info('[login:wechat:start]', {
+  debugLog('info', 'login:wechat:start', {
     api: '/api/user/weChatAppLogin',
   })
   try {
@@ -107,7 +107,7 @@ const loginWithWechat = async () => {
     const profilePromise = runUniApi('getUserProfile', { desc: '用于完善会员资料' })
     const loginPromise = runUniApi('login', { provider: 'weixin' })
     const [profileRes, loginRes] = await Promise.all([profilePromise, loginPromise])
-    console.info('[login:backend:start]', {
+    debugLog('info', 'login:backend:start', {
       api: '/api/user/weChatAppLogin',
       hasJsCode: Boolean(loginRes?.code),
       hasIv: Boolean(profileRes?.iv),
@@ -123,13 +123,13 @@ const loginWithWechat = async () => {
     if (!needBindMobile.value) finishLogin()
     else uni.showToast({ title: '请继续绑定手机号', icon: 'none' })
     // #endif
-    console.info('[login:wechat:success]', {
+    debugLog('info', 'login:wechat:success', {
       duration: Date.now() - startTime,
       hasUserInfo: Boolean(userInfo.value),
       needBindMobile: needBindMobile.value,
     })
   } catch (error) {
-    console.error('[login:wechat:fail]', {
+    debugLog('error', 'login:wechat:fail', {
       duration: Date.now() - startTime,
       message: error?.message,
       errMsg: error?.errMsg,
@@ -149,7 +149,7 @@ const bindMobile = async (event) => {
   }
   bindingMobile.value = true
   const startTime = Date.now()
-  console.info('[login:bindMobile:start]', {
+  debugLog('info', 'login:bindMobile:start', {
     api: '/api/user/bindMobile',
     hasPhoneCode: Boolean(code),
     hasOpenid: Boolean(userInfo.value?.openid),
@@ -158,13 +158,13 @@ const bindMobile = async (event) => {
     const data = await authApi.bindMobile({ code, openid: userInfo.value.openid })
     userInfo.value = data?.userinfo || userInfo.value
     userStore.setLoginInfo(data?.userinfo || data || {})
-    console.info('[login:bindMobile:success]', {
+    debugLog('info', 'login:bindMobile:success', {
       duration: Date.now() - startTime,
       hasUserInfo: Boolean(userInfo.value),
     })
     finishLogin()
   } catch (error) {
-    console.error('[login:bindMobile:fail]', {
+    debugLog('error', 'login:bindMobile:fail', {
       duration: Date.now() - startTime,
       message: error?.message,
       errMsg: error?.errMsg,

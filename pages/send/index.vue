@@ -93,6 +93,7 @@ import { computed, reactive, ref } from 'vue'
 import AppHead from '@/components/app-head/app-head.vue'
 import { orderApi } from '@/services/api'
 import { addressLine, moneyText } from '@/utils/api-fields'
+import { paymentErrorMessage, requestWechatPayment } from '@/utils/payment'
 
 const sender = ref({})
 const recipient = ref({})
@@ -195,14 +196,13 @@ const submit = async () => {
       const payData = await orderApi.pay(id)
       const payParam = payData?.payParam
       if (payParam) {
-        uni.requestPayment({
-          timeStamp: payParam.timeStamp,
-          nonceStr: payParam.nonceStr,
-          package: payParam.package,
-          signType: payParam.signType,
-          paySign: payParam.paySign,
-          success: () => uni.switchTab({ url: '/pages/express/index' }),
-        })
+        try {
+          await requestWechatPayment(payParam)
+          uni.showToast({ title: '支付成功', icon: 'none' })
+          uni.switchTab({ url: '/pages/express/index' })
+        } catch (paymentError) {
+          uni.showToast({ title: paymentErrorMessage(paymentError), icon: 'none' })
+        }
         return
       }
     }

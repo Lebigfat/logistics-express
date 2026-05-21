@@ -11,13 +11,7 @@ const LEGACY_USER_KEY = 'xjy_userinfo'
 let loadingCount = 0
 
 export const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL || DEFAULT_BASE_URL
-export const REQUEST_DEBUG_ENABLED = import.meta.env?.VITE_REQUEST_DEBUG !== 'false'
-
-console.info('[api:config]', {
-  baseURL: API_BASE_URL,
-  timeout: 60000,
-  requestDebug: REQUEST_DEBUG_ENABLED,
-})
+export const REQUEST_DEBUG_ENABLED = import.meta.env?.VITE_REQUEST_DEBUG === 'true'
 
 export const getToken = () => storage.get(TOKEN_KEY, '') || uni.getStorageSync(LEGACY_TOKEN_KEY) || ''
 
@@ -47,6 +41,18 @@ const logRequestDebug = (level, stage, payload) => {
   const logger = console[level] || console.log
   logger(`[request:${stage}]`, payload)
 }
+
+export const debugLog = (level, stage, payload) => {
+  if (!REQUEST_DEBUG_ENABLED) return
+  const logger = console[level] || console.log
+  logger(`[${stage}]`, payload)
+}
+
+debugLog('info', 'api:config', {
+  baseURL: API_BASE_URL,
+  timeout: 60000,
+  requestDebug: REQUEST_DEBUG_ENABLED,
+})
 
 const showLoading = (title = '加载中...') => {
   loadingCount += 1

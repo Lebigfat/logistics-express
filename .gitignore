@@ -10,3 +10,10 @@ pnpm-lock.yaml
 
 # vite cache
 .vite/
+
+# Agent/editor local skill and automation state
+.agents/
+.claude/
+.codex/
+.cursor/
+.curosr/

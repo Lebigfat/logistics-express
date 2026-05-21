@@ -1,10 +1,10 @@
 <script>
 import { installAuthNavigationGuard } from './services/auth'
-import { API_BASE_URL } from './services/request'
+import { API_BASE_URL, debugLog } from './services/request'
 
 export default {
   onLaunch() {
-    console.info('[app:onLaunch]', {
+    debugLog('info', 'app:onLaunch', {
       time: new Date().toISOString(),
       apiBaseURL: API_BASE_URL,
     })
