@@ -1,80 +1,91 @@
-import { request, setStoredUser, uploadFile } from './request'
+import { get, post, setStoredUser, uploadFile } from './request'
+
+const saveLoginUser = (data) => {
+  setStoredUser(data?.userinfo)
+  return data
+}
 
 export const authApi = {
   weChatAppLogin(payload) {
-    return request({ url: '/api/user/weChatAppLogin', method: 'POST', data: payload, needToken: false }).then((data) => {
-      setStoredUser(data?.userinfo)
-      return data
-    })
+    return post('/api/user/weChatAppLogin', payload, {
+      needToken: false,
+      custom: { debug: true },
+    }).then(saveLoginUser)
   },
   bindMobile(payload) {
-    return request({ url: '/api/user/bindMobile', method: 'POST', data: payload, needToken: false }).then((data) => {
-      setStoredUser(data?.userinfo)
-      return data
-    })
+    return post('/api/user/bindMobile', payload, { needToken: false }).then(saveLoginUser)
   },
 }
 
 export const userApi = {
   getUserInfo() {
-    return request({ url: '/api/user/getUserInfo' })
+    return get('/api/user/getUserInfo')
   },
   updateUserInfo(payload) {
-    return request({ url: '/api/user/userEditInfo', method: 'POST', data: payload })
+    return post('/api/user/userEditInfo', payload)
   },
   getNotice() {
-    return request({ url: '/api/user/getNotice' })
+    return get('/api/user/getNotice')
+  },
+  getNoticeDetail(id) {
+    return get('/api/user/getNoticeDetail', { id })
   },
   getConfig(keyName) {
-    return request({ url: '/api/user/getConfig', data: { keyName } })
+    return get('/api/user/getConfig', { keyName })
   },
   dataCount(params = {}) {
-    return request({ url: '/api/user/dataCount', data: { page: 1, pageSize: 10, ...params } })
+    return get('/api/user/dataCount', { page: 1, pageSize: 10, ...params })
+  },
+  dataCountExport(date) {
+    return get('/api/user/dataCountExport', { date })
   },
 }
 
 export const addressApi = {
   list(params = {}) {
-    return request({ url: '/api/user/getAddressAll', data: { page: 1, pageSize: 50, search: '', ...params } })
+    return get('/api/user/getAddressAll', { page: 1, pageSize: 50, search: '', ...params })
   },
   parse(info) {
-    return request({ url: `/api/address/parse?info=${encodeURIComponent(info)}`, method: 'POST', needToken: false })
+    return post('/api/address/parse', undefined, {
+      needToken: false,
+      params: { info },
+    })
   },
   detail(id) {
-    return request({ url: '/api/user/getAddressDetail', data: { id } })
+    return get('/api/user/getAddressDetail', { id })
   },
   create(payload) {
-    return request({ url: '/api/user/insertAddress', method: 'POST', data: payload })
+    return post('/api/user/insertAddress', payload)
   },
   update(payload) {
-    return request({ url: '/api/user/updateAddress', method: 'POST', data: payload })
+    return post('/api/user/updateAddress', payload)
   },
   remove(id) {
-    return request({ url: '/api/user/delAddress', method: 'POST', data: { id } })
+    return post('/api/user/delAddress', { id })
   },
 }
 
 export const orderApi = {
   estimate(params) {
-    return request({ url: '/api/user/getMoney', data: params })
+    return get('/api/user/getMoney', params)
   },
   create(payload) {
-    return request({ url: '/api/user/placeAnOrder', method: 'POST', data: payload })
+    return post('/api/user/placeAnOrder', payload)
   },
   list(params = {}) {
-    return request({ url: '/api/user/getOrderList', data: { page: 1, pageSize: 10, tabType: '', ...params } })
+    return get('/api/user/getOrderList', { page: 1, pageSize: 10, tabType: '', ...params })
   },
   detail(id) {
-    return request({ url: '/api/user/getOrderDetail', data: { id } })
+    return get('/api/user/getOrderDetail', { id })
   },
   pay(id) {
-    return request({ url: '/api/user/payOrder', method: 'POST', data: { id } })
+    return post('/api/user/payOrder', { id })
   },
   logistics(id) {
-    return request({ url: '/api/user/queryLogistics', data: { id } })
+    return get('/api/user/queryLogistics', { id })
   },
   cancel(id) {
-    return request({ url: '/api/user/cancelOrder', method: 'POST', data: { id } })
+    return post('/api/user/cancelOrder', { id })
   },
 }
 

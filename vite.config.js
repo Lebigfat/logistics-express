@@ -11,9 +11,6 @@ module.exports = {
     },
   },
   css: {},
-  optimizeDeps: {
-    include: ['uview-plus'],
-  },
   build: {
     commonjsOptions: {
       transformMixedEsModules: true,

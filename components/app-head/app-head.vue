@@ -4,7 +4,7 @@
       <view class="app-head__side app-head__left">
         <slot name="left">
           <view v-if="showBack" class="app-head__icon" @tap="handleBack">
-            <UvIcon name="arrow-left" :color="iconColor" :size="iconSize"></UvIcon>
+            <text class="app-head__back" :style="{ color: iconColor, fontSize: `${iconSize * 2}rpx` }">‹</text>
           </view>
         </slot>
       </view>
@@ -19,7 +19,6 @@
 </template>
 
 <script setup>
-import UvIcon from '../uv-icon/uv-icon.vue'
 import { back } from '@/utils/router'
 
 defineProps({
@@ -91,6 +90,11 @@ const handleBack = () => {
   height: 64rpx;
   display: flex;
   align-items: center;
+}
+
+.app-head__back {
+  font-weight: 700;
+  line-height: 64rpx;
 }
 
 .app-head__title {

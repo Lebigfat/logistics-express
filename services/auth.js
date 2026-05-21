@@ -1,15 +1,7 @@
 import { getToken } from './request'
 
 const LOGIN_PAGE = '/pages/login/index'
-const PROTECTED_PREFIXES = [
-  '/pages/send/index',
-  '/pages/express/index',
-  '/pages/address/index',
-  '/pages/coupon/index',
-  '/pages/moving/index',
-  '/pages/recycle/index',
-]
-
+const PROTECTED_PREFIXES = ['/pages/send/index', '/pages/address/index', '/pages/express/index']
 const ORIGINAL_KEY = '__xjy_auth_originals__'
 let installed = false
 
@@ -30,27 +22,23 @@ export const buildLoginUrl = (redirectUrl = '') => {
 }
 
 export const goLogin = (redirectUrl = '') => {
-  const url = buildLoginUrl(redirectUrl)
   const navigateTo = getOriginalMethod('navigateTo') || uni.navigateTo
-  return navigateTo({ url })
+  return navigateTo({ url: buildLoginUrl(redirectUrl) })
 }
 
-export const ensureLogin = ({ redirectUrl = '', title = 'Login required', content = 'Please login first.' } = {}) =>
+export const ensureLogin = ({ redirectUrl = '', title = '需要登录', content = '请先登录后再使用。' } = {}) =>
   new Promise((resolve) => {
     if (isLoggedIn()) {
       resolve(true)
       return
     }
-
     uni.showModal({
       title,
       content,
-      confirmText: 'Login',
-      cancelText: 'Cancel',
+      confirmText: '去登录',
+      cancelText: '取消',
       success: (res) => {
-        if (res.confirm) {
-          goLogin(redirectUrl)
-        }
+        if (res.confirm) goLogin(redirectUrl)
         resolve(false)
       },
       fail: () => resolve(false),
@@ -77,14 +65,9 @@ const wrapNavigationMethod = (name) => {
   uni[name] = (options = {}) => {
     const url = typeof options === 'string' ? options : options?.url || ''
     if (url && isProtectedUrl(url) && !isLoggedIn()) {
-      ensureLogin({
-        redirectUrl: url,
-        title: 'Login required',
-        content: 'This feature requires login.',
-      })
+      ensureLogin({ redirectUrl: url })
       return Promise.resolve()
     }
-
     return uni[ORIGINAL_KEY][name](options)
   }
 }
@@ -92,7 +75,6 @@ const wrapNavigationMethod = (name) => {
 export const installAuthNavigationGuard = () => {
   if (installed) return
   installed = true
-
   wrapNavigationMethod('navigateTo')
   wrapNavigationMethod('redirectTo')
   wrapNavigationMethod('reLaunch')

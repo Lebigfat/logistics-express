@@ -1,26 +1,17 @@
 <template>
-  <view class="login-page">
-    <AppHead title="Login" show-back></AppHead>
-
-    <view class="login-hero">
-      <image class="login-logo" src="/static/logo.png" mode="aspectFit"></image>
-      <text class="login-title">小寄优快递</text>
-      <text class="login-subtitle">登录后可使用地址簿、下单、订单支付和物流查询</text>
-    </view>
-
-    <view class="login-panel">
-      <view class="login-tip">
-        <text>将通过微信授权完成账号登录</text>
-      </view>
-
-      <button class="login-button" :loading="loggingIn" :disabled="loggingIn" @tap="loginWithWechat">
+  <view class="page">
+    <AppHead title="登录" show-back></AppHead>
+    <view class="card">
+      <image class="logo" src="/static/logo.png" mode="aspectFit"></image>
+      <text class="title">微信授权登录</text>
+      <text class="desc">登录后使用地址簿、下单、订单支付和物流查询</text>
+      <button class="primary" :loading="loggingIn" :disabled="loggingIn" @tap="loginWithWechat">
         {{ loggingIn ? '登录中...' : '微信一键登录' }}
       </button>
-
       <!-- #ifdef MP-WEIXIN -->
       <button
         v-if="needBindMobile"
-        class="phone-button"
+        class="secondary"
         :loading="bindingMobile"
         :disabled="bindingMobile"
         open-type="getPhoneNumber"
@@ -29,8 +20,6 @@
         {{ bindingMobile ? '绑定中...' : '绑定手机号' }}
       </button>
       <!-- #endif -->
-
-      <text class="login-note">登录即代表同意平台服务协议与隐私政策</text>
     </view>
   </view>
 </template>
@@ -40,6 +29,7 @@ import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppHead from '@/components/app-head/app-head.vue'
 import { authApi } from '@/services/api'
+import { API_BASE_URL } from '@/services/request'
 import { useUserStore } from '@/store'
 import { back, push, switchTab } from '@/utils/router'
 
@@ -54,14 +44,39 @@ const needBindMobile = computed(() => Boolean(userInfo.value?.openid && !userInf
 
 onLoad((options = {}) => {
   redirectUrl.value = options.redirect ? decodeURIComponent(options.redirect) : ''
+  console.info('[login:onLoad]', {
+    redirectUrl: redirectUrl.value,
+    apiBaseURL: API_BASE_URL,
+  })
 })
 
 const runUniApi = (name, options = {}) =>
   new Promise((resolve, reject) => {
+    const startTime = Date.now()
+    console.info(`[login:${name}:start]`, {
+      provider: options.provider,
+      desc: options.desc,
+    })
     uni[name]({
       ...options,
-      success: resolve,
-      fail: reject,
+      success: (res) => {
+        console.info(`[login:${name}:success]`, {
+          duration: Date.now() - startTime,
+          hasCode: Boolean(res?.code),
+          hasIv: Boolean(res?.iv),
+          hasEncryptedData: Boolean(res?.encryptedData),
+          errMsg: res?.errMsg,
+        })
+        resolve(res)
+      },
+      fail: (error) => {
+        console.error(`[login:${name}:fail]`, {
+          duration: Date.now() - startTime,
+          errMsg: error?.errMsg,
+          message: error?.message,
+        })
+        reject(error)
+      },
     })
   })
 
@@ -70,31 +85,34 @@ const finishLogin = () => {
   setTimeout(() => {
     if (redirectUrl.value) {
       const targetPath = redirectUrl.value.split('?')[0].split('#')[0]
-      if (tabBarPaths.includes(targetPath)) {
-        switchTab(targetPath)
-      } else {
-        push(redirectUrl.value)
-      }
+      if (tabBarPaths.includes(targetPath)) switchTab(targetPath)
+      else push(redirectUrl.value)
       return
     }
-
     const pages = getCurrentPages()
-    if (pages.length > 1) {
-      back()
-    } else {
-      switchTab('/pages/profile/index')
-    }
+    if (pages.length > 1) back()
+    else switchTab('/pages/profile/index')
   }, 300)
 }
 
 const loginWithWechat = async () => {
   if (loggingIn.value) return
   loggingIn.value = true
-
+  const startTime = Date.now()
+  console.info('[login:wechat:start]', {
+    api: '/api/user/weChatAppLogin',
+  })
   try {
     // #ifdef MP-WEIXIN
-    const loginRes = await runUniApi('login', { provider: 'weixin' })
-    const profileRes = await runUniApi('getUserProfile', { desc: '用于完善会员资料' })
+    const profilePromise = runUniApi('getUserProfile', { desc: '用于完善会员资料' })
+    const loginPromise = runUniApi('login', { provider: 'weixin' })
+    const [profileRes, loginRes] = await Promise.all([profilePromise, loginPromise])
+    console.info('[login:backend:start]', {
+      api: '/api/user/weChatAppLogin',
+      hasJsCode: Boolean(loginRes?.code),
+      hasIv: Boolean(profileRes?.iv),
+      hasEncryptedData: Boolean(profileRes?.encryptedData),
+    })
     const data = await authApi.weChatAppLogin({
       js_code: loginRes.code,
       iv: profileRes.iv,
@@ -102,11 +120,21 @@ const loginWithWechat = async () => {
     })
     userInfo.value = data?.userinfo || null
     userStore.setLoginInfo(data?.userinfo || data || {})
-
     if (!needBindMobile.value) finishLogin()
     else uni.showToast({ title: '请继续绑定手机号', icon: 'none' })
     // #endif
+    console.info('[login:wechat:success]', {
+      duration: Date.now() - startTime,
+      hasUserInfo: Boolean(userInfo.value),
+      needBindMobile: needBindMobile.value,
+    })
   } catch (error) {
+    console.error('[login:wechat:fail]', {
+      duration: Date.now() - startTime,
+      message: error?.message,
+      errMsg: error?.errMsg,
+      statusCode: error?.statusCode,
+    })
     uni.showToast({ title: error.message || '登录失败', icon: 'none' })
   } finally {
     loggingIn.value = false
@@ -119,14 +147,29 @@ const bindMobile = async (event) => {
     uni.showToast({ title: '手机号授权失败', icon: 'none' })
     return
   }
-
   bindingMobile.value = true
+  const startTime = Date.now()
+  console.info('[login:bindMobile:start]', {
+    api: '/api/user/bindMobile',
+    hasPhoneCode: Boolean(code),
+    hasOpenid: Boolean(userInfo.value?.openid),
+  })
   try {
     const data = await authApi.bindMobile({ code, openid: userInfo.value.openid })
     userInfo.value = data?.userinfo || userInfo.value
     userStore.setLoginInfo(data?.userinfo || data || {})
+    console.info('[login:bindMobile:success]', {
+      duration: Date.now() - startTime,
+      hasUserInfo: Boolean(userInfo.value),
+    })
     finishLogin()
   } catch (error) {
+    console.error('[login:bindMobile:fail]', {
+      duration: Date.now() - startTime,
+      message: error?.message,
+      errMsg: error?.errMsg,
+      statusCode: error?.statusCode,
+    })
     uni.showToast({ title: error.message || '绑定失败', icon: 'none' })
   } finally {
     bindingMobile.value = false
@@ -139,95 +182,61 @@ page {
   background: #f5f7fb;
 }
 
-.login-page {
+.page {
   min-height: 100vh;
   background: #f5f7fb;
-  color: #111827;
 }
 
-.login-hero {
-  padding: 96rpx 48rpx 70rpx;
+.card {
+  margin: 80rpx 32rpx 0;
+  padding: 54rpx 34rpx;
   display: flex;
   flex-direction: column;
   align-items: center;
+  border-radius: 16rpx;
+  background: #ffffff;
 }
 
-.login-logo {
+.logo {
   width: 132rpx;
   height: 132rpx;
   border-radius: 28rpx;
-  background: #ffffff;
 }
 
-.login-title {
-  margin-top: 30rpx;
-  font-size: 42rpx;
-  font-weight: 700;
+.title {
+  margin-top: 32rpx;
+  color: #111827;
+  font-size: 38rpx;
+  font-weight: 800;
 }
 
-.login-subtitle {
+.desc {
   width: 520rpx;
   margin-top: 18rpx;
   color: #6b7280;
-  font-size: 27rpx;
-  line-height: 42rpx;
+  font-size: 26rpx;
+  line-height: 40rpx;
   text-align: center;
 }
 
-.login-panel {
-  margin: 0 34rpx;
-  padding: 40rpx 30rpx 34rpx;
-  border-radius: 18rpx;
-  background: #ffffff;
-  box-sizing: border-box;
-}
-
-.login-tip {
-  min-height: 72rpx;
-  padding: 0 22rpx;
-  display: flex;
-  align-items: center;
-  border-radius: 12rpx;
-  background: #f3f8ff;
-  color: #4b5563;
-  font-size: 26rpx;
-  box-sizing: border-box;
-}
-
-.login-button,
-.phone-button {
+.primary,
+.secondary {
+  width: 100%;
   height: 88rpx;
-  margin-top: 32rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 0;
+  margin-top: 38rpx;
   border-radius: 12rpx;
   color: #ffffff;
-  font-size: 31rpx;
-  font-weight: 700;
+  font-size: 30rpx;
+  font-weight: 800;
   line-height: 88rpx;
 }
 
-.login-button {
+.primary {
   background: #438bff;
 }
 
-.phone-button {
-  background: #16a34a;
-}
-
-.login-button::after,
-.phone-button::after {
-  border: none;
-}
-
-.login-note {
-  display: block;
-  margin-top: 26rpx;
-  color: #9ca3af;
-  font-size: 23rpx;
-  line-height: 34rpx;
-  text-align: center;
+.secondary {
+  margin-top: 24rpx;
+  background: #10b981;
 }
 </style>

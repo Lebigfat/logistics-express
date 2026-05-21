@@ -1,7 +1,8 @@
+import Request from 'luch-request'
 import storage from '@/utils/storage'
 import { $toast } from '@/utils/toast'
 
-const DEFAULT_BASE_URL = 'http://prod-cn.your-api-server.com'
+const DEFAULT_BASE_URL = 'https://jdd.cdsljkj.com'
 const TOKEN_KEY = 'token'
 const USER_KEY = 'userinfo'
 const LEGACY_TOKEN_KEY = 'xjy_token'
@@ -10,6 +11,13 @@ const LEGACY_USER_KEY = 'xjy_userinfo'
 let loadingCount = 0
 
 export const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL || DEFAULT_BASE_URL
+export const REQUEST_DEBUG_ENABLED = import.meta.env?.VITE_REQUEST_DEBUG !== 'false'
+
+console.info('[api:config]', {
+  baseURL: API_BASE_URL,
+  timeout: 60000,
+  requestDebug: REQUEST_DEBUG_ENABLED,
+})
 
 export const getToken = () => storage.get(TOKEN_KEY, '') || uni.getStorageSync(LEGACY_TOKEN_KEY) || ''
 
@@ -31,10 +39,16 @@ export const clearAuth = () => {
   uni.removeStorageSync(LEGACY_USER_KEY)
 }
 
-const buildUrl = (url) => (/^https?:\/\//.test(url) ? url : `${API_BASE_URL}${url}`)
-const resolveMessage = (body, fallback) => body?.msg || body?.message || fallback
+const resolveMessage = (body, fallback) => body?.msg || body?.message || body?.errMsg || fallback
+const createTraceId = () => `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`
 
-const showLoading = (title = 'Loading...') => {
+const logRequestDebug = (level, stage, payload) => {
+  if (!REQUEST_DEBUG_ENABLED) return
+  const logger = console[level] || console.log
+  logger(`[request:${stage}]`, payload)
+}
+
+const showLoading = (title = '加载中...') => {
   loadingCount += 1
   if (loadingCount === 1) {
     uni.showLoading({ title, mask: true })
@@ -48,89 +62,190 @@ const hideLoading = () => {
   }
 }
 
-export const request = ({ url, method = 'GET', data = {}, header = {}, needToken = true, custom = {} }) =>
-  new Promise((resolve, reject) => {
-    const token = getToken()
+const parseResponseData = (data) => {
+  if (typeof data !== 'string') return data
 
-    if (custom.loading) {
-      showLoading(custom.loadingText)
+  try {
+    return JSON.parse(data)
+  } catch {
+    return data
+  }
+}
+
+const normalizeConfig = (options = {}) => ({
+  ...options,
+  header: {
+    'content-type': 'application/json',
+    ...(options.header || {}),
+  },
+  custom: {
+    needToken: options.needToken !== false,
+    toast: options.custom?.toast,
+    loading: options.custom?.loading,
+    loadingText: options.custom?.loadingText,
+    debug: options.custom?.debug ?? REQUEST_DEBUG_ENABLED,
+    ...(options.custom || {}),
+  },
+})
+
+export const http = new Request({
+  baseURL: API_BASE_URL,
+  timeout: 60000,
+  header: {
+    'content-type': 'application/json',
+  },
+})
+
+http.interceptors.request.use((config) => {
+  const token = getToken()
+  const custom = config.custom || {}
+
+  if (custom.needToken !== false && token) {
+    config.header = {
+      ...(config.header || {}),
+      token,
+      Authorization: `Bearer ${token}`,
+    }
+  }
+
+  if (custom.loading) {
+    showLoading(custom.loadingText)
+  }
+
+  if (custom.debug) {
+    custom.debugTrace = {
+      id: createTraceId(),
+      startTime: Date.now(),
+      method: config.method,
+      url: config.url,
+      requestUrl: `${config.baseURL || ''}${config.url || ''}`,
     }
 
-    uni.request({
-      url: buildUrl(url),
+    logRequestDebug('info', 'start', {
+      id: custom.debugTrace.id,
+      method: config.method,
+      url: config.url,
+      requestUrl: custom.debugTrace.requestUrl,
+      needToken: custom.needToken !== false,
+      hasToken: Boolean(token),
+      dataKeys: config.data && typeof config.data === 'object' ? Object.keys(config.data) : [],
+      paramsKeys: config.params && typeof config.params === 'object' ? Object.keys(config.params) : [],
+    })
+  }
+
+  return config
+})
+
+http.interceptors.response.use(
+  (response) => {
+    const config = response.config || {}
+    const custom = config.custom || {}
+    const trace = custom.debugTrace
+    const body = parseResponseData(response.data)
+
+    if (custom.loading) {
+      hideLoading()
+    }
+
+    if (trace) {
+      logRequestDebug('info', 'success', {
+        id: trace.id,
+        method: config.method,
+        url: config.url,
+        statusCode: response.statusCode,
+        code: body?.code,
+        message: body?.msg || body?.message || '',
+        duration: Date.now() - trace.startTime,
+      })
+    }
+
+    if (body && typeof body === 'object' && 'code' in body && body.code !== 1) {
+      const error = new Error(resolveMessage(body, '请求失败'))
+      error.data = body
+      error.statusCode = response.statusCode
+      error.config = config
+      if (custom.toast !== false) $toast.show(error.message)
+      return Promise.reject(error)
+    }
+
+    return body?.data ?? body
+  },
+  (error) => {
+    const config = error?.config || {}
+    const custom = config.custom || {}
+    const trace = custom.debugTrace
+    const body = parseResponseData(error?.data)
+    const message = resolveMessage(body, error?.errMsg || (error?.statusCode ? `HTTP ${error.statusCode}` : '网络请求失败'))
+
+    if (custom.loading) {
+      hideLoading()
+    }
+
+    if (trace) {
+      logRequestDebug('error', 'fail', {
+        id: trace.id,
+        method: config.method,
+        url: config.url,
+        requestUrl: trace.requestUrl,
+        statusCode: error?.statusCode,
+        errMsg: error?.errMsg,
+        message,
+        duration: Date.now() - trace.startTime,
+      })
+    }
+
+    if (custom.toast !== false) $toast.show(message)
+
+    const normalizedError = error instanceof Error ? error : new Error(message)
+    normalizedError.message = message
+    normalizedError.data = body
+    normalizedError.statusCode = error?.statusCode
+    normalizedError.config = config
+    return Promise.reject(normalizedError)
+  },
+)
+
+export const request = ({ url, method = 'GET', data = {}, params, header = {}, needToken = true, custom = {} }) =>
+  http.request(
+    normalizeConfig({
+      url,
       method,
       data,
-      header: {
-        'content-type': 'application/json',
-        ...(needToken && token ? { token, Authorization: `Bearer ${token}` } : {}),
-        ...header,
-      },
-      success: (res) => {
-        const body = res.data
+      params,
+      header,
+      needToken,
+      custom,
+    }),
+  )
 
-        if (res.statusCode < 200 || res.statusCode >= 300) {
-          const error = new Error(resolveMessage(body, `HTTP ${res.statusCode}`))
-          if (custom.toast !== false) $toast.show(error.message)
-          reject(error)
-          return
-        }
+export const get = (url, params = {}, options = {}) =>
+  http.get(
+    url,
+    normalizeConfig({
+      ...options,
+      params,
+    }),
+  )
 
-        if (body && typeof body === 'object' && 'code' in body && body.code !== 1) {
-          const error = new Error(resolveMessage(body, 'Request failed'))
-          if (custom.toast !== false) $toast.show(error.message)
-          reject(error)
-          return
-        }
+export const post = (url, data = {}, options = {}) =>
+  http.post(
+    url,
+    data,
+    normalizeConfig(options),
+  )
 
-        resolve(body?.data ?? body)
-      },
-      fail: (error) => {
-        const message = error?.errMsg || 'Network request failed'
-        if (custom.toast !== false) $toast.show(message)
-        reject(new Error(message))
-      },
-      complete: () => {
-        if (custom.loading) hideLoading()
-      },
-    })
-  })
-
-export const uploadFile = ({ url, filePath, name = 'file', formData = {}, custom = {} }) =>
-  new Promise((resolve, reject) => {
-    const token = getToken()
-
-    if (custom.loading) {
-      showLoading(custom.loadingText || 'Uploading...')
-    }
-
-    uni.uploadFile({
-      url: buildUrl(url),
+export const uploadFile = ({ url, filePath, name = 'file', formData = {}, header = {}, needToken = true, custom = {} }) =>
+  http.upload(
+    url,
+    normalizeConfig({
       filePath,
       name,
       formData,
-      header: token ? { token, Authorization: `Bearer ${token}` } : {},
-      success: (res) => {
-        try {
-          const body = typeof res.data === 'string' ? JSON.parse(res.data) : res.data
-          if (body?.code !== 1) {
-            const error = new Error(resolveMessage(body, 'Upload failed'))
-            if (custom.toast !== false) $toast.show(error.message)
-            reject(error)
-            return
-          }
-          resolve(body.data)
-        } catch (error) {
-          if (custom.toast !== false) $toast.show(error.message || 'Upload failed')
-          reject(error)
-        }
+      header,
+      needToken,
+      custom: {
+        loadingText: '上传中...',
+        ...custom,
       },
-      fail: (error) => {
-        const message = error?.errMsg || 'Upload failed'
-        if (custom.toast !== false) $toast.show(message)
-        reject(new Error(message))
-      },
-      complete: () => {
-        if (custom.loading) hideLoading()
-      },
-    })
-  })
+    }),
+  )

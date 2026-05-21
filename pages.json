@@ -18,13 +18,6 @@
       }
     },
     {
-      "path": "pages/coupon/index",
-      "style": {
-        "navigationStyle": "custom",
-        "disableScroll": false
-      }
-    },
-    {
       "path": "pages/address/index",
       "style": {
         "navigationStyle": "custom",
@@ -53,28 +46,14 @@
       }
     },
     {
-      "path": "pages/recycle/index",
-      "style": {
-        "navigationStyle": "custom",
-        "disableScroll": false
-      }
-    },
-    {
-      "path": "pages/moving/index",
-      "style": {
-        "navigationStyle": "custom",
-        "disableScroll": false
-      }
-    },
-    {
-      "path": "pages/share/index",
-      "style": {
-        "navigationStyle": "custom",
-        "disableScroll": false
-      }
-    },
-    {
       "path": "pages/login/index",
+      "style": {
+        "navigationStyle": "custom",
+        "disableScroll": false
+      }
+    },
+    {
+      "path": "pages/notice/index",
       "style": {
         "navigationStyle": "custom",
         "disableScroll": false

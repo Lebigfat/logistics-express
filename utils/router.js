@@ -6,13 +6,11 @@ const getPath = (url = '') => String(url).split('?')[0].split('#')[0]
 
 const buildUrl = (to) => {
   if (typeof to === 'string') return to
-
   const query = to.query || {}
   const queryString = Object.keys(query)
     .filter((key) => query[key] !== undefined && query[key] !== null)
     .map((key) => `${key}=${encodeURIComponent(query[key])}`)
     .join('&')
-
   if (!queryString) return to.path
   return `${to.path}${to.path.includes('?') ? '&' : '?'}${queryString}`
 }
