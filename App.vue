@@ -4,17 +4,29 @@ import { installAuthNavigationGuard } from './services/auth'
 export default {
   onLaunch() {
     installAuthNavigationGuard()
-    console.log('App Launch')
-  },
-  onShow() {
-    console.log('App Show')
-  },
-  onHide() {
-    console.log('App Hide')
   },
 }
 </script>
 
 <style lang="scss">
-/* 每个页面公共 CSS */
+page,
+view,
+text,
+image,
+scroll-view,
+input,
+textarea,
+button {
+  box-sizing: border-box;
+}
+
+page {
+  width: 100%;
+  min-height: 100%;
+  font-size: 28rpx;
+}
+
+button::after {
+  border: none;
+}
 </style>

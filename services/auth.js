@@ -14,7 +14,6 @@ const ORIGINAL_KEY = '__xjy_auth_originals__'
 let installed = false
 
 const getOriginalMethod = (name) => uni[ORIGINAL_KEY]?.[name]
-
 const getPath = (url) => String(url || '').split('?')[0].split('#')[0]
 
 export const isLoggedIn = () => Boolean(getToken())
@@ -36,7 +35,7 @@ export const goLogin = (redirectUrl = '') => {
   return navigateTo({ url })
 }
 
-export const ensureLogin = ({ redirectUrl = '', title = '需要登录', content = '请先登录后继续操作' } = {}) =>
+export const ensureLogin = ({ redirectUrl = '', title = 'Login required', content = 'Please login first.' } = {}) =>
   new Promise((resolve) => {
     if (isLoggedIn()) {
       resolve(true)
@@ -46,8 +45,8 @@ export const ensureLogin = ({ redirectUrl = '', title = '需要登录', content 
     uni.showModal({
       title,
       content,
-      confirmText: '去登录',
-      cancelText: '取消',
+      confirmText: 'Login',
+      cancelText: 'Cancel',
       success: (res) => {
         if (res.confirm) {
           goLogin(redirectUrl)
@@ -78,11 +77,10 @@ const wrapNavigationMethod = (name) => {
   uni[name] = (options = {}) => {
     const url = typeof options === 'string' ? options : options?.url || ''
     if (url && isProtectedUrl(url) && !isLoggedIn()) {
-      const redirectUrl = url
       ensureLogin({
-        redirectUrl,
-        title: '请先登录',
-        content: '该功能需要登录后使用，是否现在去登录？',
+        redirectUrl: url,
+        title: 'Login required',
+        content: 'This feature requires login.',
       })
       return Promise.resolve()
     }

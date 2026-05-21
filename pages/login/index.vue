@@ -1,6 +1,6 @@
 <template>
   <view class="login-page">
-    <AppHead title="登录" show-back></AppHead>
+    <AppHead title="Login" show-back></AppHead>
 
     <view class="login-hero">
       <image class="login-logo" src="/static/logo.png" mode="aspectFit"></image>
@@ -40,7 +40,10 @@ import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppHead from '@/components/app-head/app-head.vue'
 import { authApi } from '@/services/api'
+import { useUserStore } from '@/store'
+import { back, push, switchTab } from '@/utils/router'
 
+const userStore = useUserStore()
 const loggingIn = ref(false)
 const bindingMobile = ref(false)
 const userInfo = ref(null)
@@ -68,18 +71,18 @@ const finishLogin = () => {
     if (redirectUrl.value) {
       const targetPath = redirectUrl.value.split('?')[0].split('#')[0]
       if (tabBarPaths.includes(targetPath)) {
-        uni.switchTab({ url: targetPath })
+        switchTab(targetPath)
       } else {
-        uni.redirectTo({ url: redirectUrl.value })
+        push(redirectUrl.value)
       }
       return
     }
 
     const pages = getCurrentPages()
     if (pages.length > 1) {
-      uni.navigateBack()
+      back()
     } else {
-      uni.switchTab({ url: '/pages/profile/index' })
+      switchTab('/pages/profile/index')
     }
   }, 300)
 }
@@ -98,13 +101,10 @@ const loginWithWechat = async () => {
       encryptedData: profileRes.encryptedData,
     })
     userInfo.value = data?.userinfo || null
+    userStore.setLoginInfo(data?.userinfo || data || {})
 
     if (!needBindMobile.value) finishLogin()
     else uni.showToast({ title: '请继续绑定手机号', icon: 'none' })
-    // #endif
-
-    // #ifndef MP-WEIXIN
-    uni.showToast({ title: '当前登录接口需要微信小程序环境', icon: 'none' })
     // #endif
   } catch (error) {
     uni.showToast({ title: error.message || '登录失败', icon: 'none' })
@@ -124,6 +124,7 @@ const bindMobile = async (event) => {
   try {
     const data = await authApi.bindMobile({ code, openid: userInfo.value.openid })
     userInfo.value = data?.userinfo || userInfo.value
+    userStore.setLoginInfo(data?.userinfo || data || {})
     finishLogin()
   } catch (error) {
     uni.showToast({ title: error.message || '绑定失败', icon: 'none' })

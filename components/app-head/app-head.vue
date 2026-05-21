@@ -1,5 +1,5 @@
 <template>
-  <view class="app-head" :style="{ backgroundColor: backgroundColor }">
+  <view class="app-head" :style="{ backgroundColor }">
     <view class="app-head__bar">
       <view class="app-head__side app-head__left">
         <slot name="left">
@@ -20,6 +20,7 @@
 
 <script setup>
 import UvIcon from '../uv-icon/uv-icon.vue'
+import { back } from '@/utils/router'
 
 defineProps({
   title: {
@@ -49,15 +50,7 @@ defineProps({
 })
 
 const handleBack = () => {
-  const pages = getCurrentPages()
-  if (pages.length > 1) {
-    uni.navigateBack()
-    return
-  }
-
-  uni.switchTab({
-    url: '/pages/index/index',
-  })
+  back()
 }
 </script>
 
@@ -67,7 +60,6 @@ const handleBack = () => {
   z-index: 10;
   width: 100%;
   padding-top: var(--status-bar-height);
-  background: #ffffff;
   box-sizing: border-box;
 }
 
