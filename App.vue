@@ -1,6 +1,9 @@
 <script>
+import { installAuthNavigationGuard } from './services/auth'
+
 export default {
   onLaunch() {
+    installAuthNavigationGuard()
     console.log('App Launch')
   },
   onShow() {

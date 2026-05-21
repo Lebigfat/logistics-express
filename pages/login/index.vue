@@ -45,6 +45,7 @@ const loggingIn = ref(false)
 const bindingMobile = ref(false)
 const userInfo = ref(null)
 const redirectUrl = ref('')
+const tabBarPaths = ['/pages/index/index', '/pages/express/index', '/pages/life/index', '/pages/profile/index']
 
 const needBindMobile = computed(() => Boolean(userInfo.value?.openid && !userInfo.value?.mobile))
 
@@ -65,7 +66,12 @@ const finishLogin = () => {
   uni.showToast({ title: '登录成功', icon: 'none' })
   setTimeout(() => {
     if (redirectUrl.value) {
-      uni.redirectTo({ url: redirectUrl.value })
+      const targetPath = redirectUrl.value.split('?')[0].split('#')[0]
+      if (tabBarPaths.includes(targetPath)) {
+        uni.switchTab({ url: targetPath })
+      } else {
+        uni.redirectTo({ url: redirectUrl.value })
+      }
       return
     }
 
