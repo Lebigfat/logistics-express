@@ -12,7 +12,7 @@
       <view class="quick">
         <view class="quick-main" @tap="go('/pages/send/index')">
           <text class="quick-title">寄快递</text>
-          <text class="quick-desc">使用 sender_id、recipient_id 创建订单</text>
+          <text class="quick-desc">选择寄收地址，试算运费并创建快递订单</text>
         </view>
         <view class="quick-side">
           <view class="quick-card" @tap="go('/pages/address/index')">
@@ -36,22 +36,23 @@
 
     <view class="panel notice" @tap="openNotice">
       <text class="notice-label">公告</text>
-      <text class="notice-copy">{{ notice.desc || notice.content || '暂无公告' }}</text>
+      <text class="notice-copy">{{ notice.desc || plainNoticeContent || '暂无公告' }}</text>
     </view>
 
     <view class="banner">
-      <text>先选地址，再用后端字段创建订单</text>
-      <text>不使用前端自造接口字段</text>
+      <text>小程序寄件闭环已接接口字段</text>
+      <text>登录、地址、下单、支付、物流、统计均按 docs/api 文档实现</text>
     </view>
   </view>
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { userApi } from '@/services/api'
 import { debugLog } from '@/services/request'
 
 const notice = ref({})
+const plainNoticeContent = computed(() => String(notice.value?.content || '').replace(/<[^>]+>/g, ''))
 
 const tools = [
   { title: '查运费', icon: '¥', url: '/pages/send/index' },
@@ -79,7 +80,8 @@ onMounted(async () => {
       message: '开始请求首页公告',
       api: '/api/user/getNotice',
     })
-    notice.value = await userApi.getNotice()
+    const data = await userApi.getNotice()
+    notice.value = Array.isArray(data) ? data[0] || {} : data || {}
   } catch (error) {
     debugLog('warn', 'startup:index', {
       message: '首页 getNotice 请求失败',
